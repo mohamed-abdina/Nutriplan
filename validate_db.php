@@ -1,15 +1,25 @@
 <?php
 /**
- * NutriPlan Database Validation Script
+ * NutriPlan Database Validation Script (PDO)
  * Validates database structure and seeded data
  */
 
-$db_host = 'localhost';
-$db_user = 'root';
-$db_password = '';
-$db_name = 'meal_planning_db';
+require_once __DIR__ . '/vendor/autoload.php';
 
-// Color codes for terminal output
+// Load .env if present
+if (file_exists(__DIR__ . '/.env')) {
+    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+    $dotenv->load();
+}
+$functions_path = __DIR__ . '/includes/functions.php';
+if (file_exists($functions_path)) require_once $functions_path;
+
+$db_host = function_exists('get_db_host') ? get_db_host() : ($_ENV['MYSQL_HOST'] ?? ($_ENV['DB_HOST'] ?? 'db'));
+$db_user = $_ENV['MYSQL_USER'] ?? ($_ENV['DB_USER'] ?? 'root');
+$db_password = $_ENV['MYSQL_PASSWORD'] ?? ($_ENV['DB_PASSWORD'] ?? '');
+$db_name = $_ENV['MYSQL_DATABASE'] ?? ($_ENV['DB_NAME'] ?? 'meal_planning_db');
+$db_charset = 'utf8mb4';
+
 $green = "\033[92m";
 $red = "\033[91m";
 $yellow = "\033[93m";
@@ -17,44 +27,64 @@ $blue = "\033[94m";
 $reset = "\033[0m";
 
 echo "{$blue}═══════════════════════════════════════════════════════{$reset}\n";
-echo "{$blue}  NutriPlan Database Validation Script{$reset}\n";
+echo "{$blue}  NutriPlan Database Validation Script (PDO){$reset}\n";
 echo "{$blue}═══════════════════════════════════════════════════════{$reset}\n\n";
 
-// Connect to MySQL
-$conn = new mysqli($db_host, $db_user, $db_password);
+$opts = [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    PDO::ATTR_EMULATE_PREPARES => false,
+];
 
-if ($conn->connect_error) {
-    echo "{$red}✗ Connection failed: {$conn->connect_error}{$reset}\n";
+try {
+    // Connect without a database to check for DB existence
+    $dsn_no_db = "mysql:host={$db_host};charset={$db_charset}";
+    $pdo = new PDO($dsn_no_db, $db_user, $db_password, $opts);
+    echo "{$green}✓ Connected to MySQL host{$reset}\n";
+} catch (PDOException $e) {
+    echo "{$red}✗ Connection failed: {$e->getMessage()}{$reset}\n";
     exit(1);
 }
-
-echo "{$green}✓ Connected to MySQL{$reset}\n";
 
 // Check if database exists
-$db_check = $conn->query("SHOW DATABASES LIKE '$db_name'");
-if ($db_check->num_rows === 0) {
-    echo "{$red}✗ Database '$db_name' not found!{$reset}\n";
+try {
+    $stmt = $pdo->prepare("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?");
+    $stmt->execute([$db_name]);
+    $db_exists = (bool)$stmt->fetch();
+    if (!$db_exists) {
+        echo "{$red}✗ Database '{$db_name}' not found!{$reset}\n";
+        exit(1);
+    }
+    echo "{$green}✓ Database '{$db_name}' exists{$reset}\n";
+} catch (PDOException $e) {
+    echo "{$red}✗ Error checking database: {$e->getMessage()}{$reset}\n";
     exit(1);
 }
-echo "{$green}✓ Database '$db_name' exists{$reset}\n";
 
-// Select database
-$conn->select_db($db_name);
+// Connect to the database
+try {
+    $dsn_db = "mysql:host={$db_host};dbname={$db_name};charset={$db_charset}";
+    $pdo = new PDO($dsn_db, $db_user, $db_password, $opts);
+} catch (PDOException $e) {
+    echo "{$red}✗ Connection to database failed: {$e->getMessage()}{$reset}\n";
+    exit(1);
+}
 
-// Expected tables
 $expected_tables = ['users', 'categories', 'meals', 'nutrition', 'shopping_lists', 'shopping_items'];
 
 // Get existing tables
-$tables_result = $conn->query("SHOW TABLES");
-$existing_tables = [];
-while ($row = $tables_result->fetch_row()) {
-    $existing_tables[] = $row[0];
+try {
+    $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_NUM);
+    $existing_tables = array_map(function($r){ return $r[0]; }, $tables);
+} catch (PDOException $e) {
+    echo "{$red}✗ Error listing tables: {$e->getMessage()}{$reset}\n";
+    exit(1);
 }
 
 echo "\n{$blue}━━━ TABLE VALIDATION ━━━{$reset}\n";
 $missing_tables = array_diff($expected_tables, $existing_tables);
 if (empty($missing_tables)) {
-    echo "{$green}✓ All 6 tables exist{$reset}\n";
+    echo "{$green}✓ All expected tables exist{$reset}\n";
     foreach ($expected_tables as $table) {
         echo "  {$green}✓{$reset} $table\n";
     }
@@ -65,150 +95,100 @@ if (empty($missing_tables)) {
     }
 }
 
-// Validate Categories
+// Categories validation
 echo "\n{$blue}━━━ CATEGORIES VALIDATION ━━━{$reset}\n";
-$cat_result = $conn->query("SELECT COUNT(*) as count FROM categories");
-$cat_row = $cat_result->fetch_assoc();
-$cat_count = $cat_row['count'];
-
+$cat_count = (int)$pdo->query("SELECT COUNT(*) AS c FROM categories")->fetchColumn();
 if ($cat_count === 3) {
     echo "{$green}✓ All 3 categories exist{$reset}\n";
-    $cats = $conn->query("SELECT category_id, category_name, category_icon FROM categories");
-    while ($cat = $cats->fetch_assoc()) {
+    $cats = $pdo->query("SELECT category_id, category_name, category_icon FROM categories")->fetchAll();
+    foreach ($cats as $cat) {
         echo "  {$green}✓{$reset} ID:{$cat['category_id']} | {$cat['category_name']} {$cat['category_icon']}\n";
     }
 } else {
     echo "{$red}✗ Expected 3 categories, found: $cat_count{$reset}\n";
 }
 
-// Validate Meals
+// Meals validation
 echo "\n{$blue}━━━ MEALS VALIDATION ━━━{$reset}\n";
-$meal_result = $conn->query("SELECT COUNT(*) as count FROM meals");
-$meal_row = $meal_result->fetch_assoc();
-$meal_count = $meal_row['count'];
-
+$meal_count = (int)$pdo->query("SELECT COUNT(*) AS c FROM meals")->fetchColumn();
 if ($meal_count === 22) {
     echo "{$green}✓ All 22 meals exist{$reset}\n";
-    
-    // Show meals by category
     $categories = ['Breakfast', 'Lunch', 'Supper'];
     foreach ($categories as $cat_name) {
-        $meals = $conn->query("
-            SELECT m.meal_id, m.meal_name, m.meal_icon, m.preparation_time 
-            FROM meals m 
-            JOIN categories c ON m.category_id = c.category_id 
-            WHERE c.category_name = '$cat_name'
-            ORDER BY m.meal_id
-        ");
-        $cat_meal_count = $meals->num_rows;
+        $stmt = $pdo->prepare("SELECT m.meal_id, m.meal_name, m.meal_icon, m.preparation_time FROM meals m JOIN categories c ON m.category_id = c.category_id WHERE c.category_name = ? ORDER BY m.meal_id");
+        $stmt->execute([$cat_name]);
+        $meals = $stmt->fetchAll();
+        $cat_meal_count = count($meals);
         echo "  {$blue}$cat_name ($cat_meal_count meals):{$reset}\n";
-        
-        while ($meal = $meals->fetch_assoc()) {
+        foreach ($meals as $meal) {
             echo "    {$green}✓{$reset} {$meal['meal_icon']} {$meal['meal_name']} ({$meal['preparation_time']} min)\n";
         }
     }
 } else {
     echo "{$red}✗ Expected 22 meals, found: $meal_count{$reset}\n";
-    
-    // Show what we do have
-    $meals = $conn->query("SELECT meal_id, meal_name FROM meals LIMIT 10");
+    $sample = $pdo->query("SELECT meal_id, meal_name FROM meals LIMIT 10")->fetchAll();
     echo "  Sample meals found:\n";
-    while ($meal = $meals->fetch_assoc()) {
-        echo "    {$yellow}→{$reset} {$meal['meal_name']}\n";
+    foreach ($sample as $m) {
+        echo "    {$yellow}→{$reset} {$m['meal_name']}\n";
     }
 }
 
-// Validate Nutrition Data
+// Nutrition validation
 echo "\n{$blue}━━━ NUTRITION DATA VALIDATION ━━━{$reset}\n";
-$nut_result = $conn->query("SELECT COUNT(*) as count FROM nutrition");
-$nut_row = $nut_result->fetch_assoc();
-$nut_count = $nut_row['count'];
-
+$nut_count = (int)$pdo->query("SELECT COUNT(*) AS c FROM nutrition")->fetchColumn();
 if ($nut_count === 22) {
     echo "{$green}✓ Nutrition data for all 22 meals{$reset}\n";
-    
-    // Show sample nutrition data
-    $sample = $conn->query("
-        SELECT m.meal_name, n.calories, n.proteins_g, n.carbs_g, n.fats_g 
-        FROM nutrition n 
-        JOIN meals m ON n.meal_id = m.meal_id 
-        LIMIT 5
-    ");
+    $sample = $pdo->query("SELECT m.meal_name, n.calories, n.proteins_g, n.carbs_g, n.fats_g FROM nutrition n JOIN meals m ON n.meal_id = m.meal_id LIMIT 5")->fetchAll();
     echo "  Sample nutrition data:\n";
-    while ($nut = $sample->fetch_assoc()) {
+    foreach ($sample as $nut) {
         echo "    {$green}✓{$reset} {$nut['meal_name']}: {$nut['calories']} cal, {$nut['proteins_g']}g protein, {$nut['carbs_g']}g carbs, {$nut['fats_g']}g fat\n";
     }
 } else {
     echo "{$red}✗ Expected 22 nutrition entries, found: $nut_count{$reset}\n";
 }
 
-// Validate Data Integrity
+// Data integrity checks
 echo "\n{$blue}━━━ DATA INTEGRITY CHECK ━━━{$reset}\n";
-
-// Check for meals without nutrition
-$orphan_meals = $conn->query("
-    SELECT m.meal_id, m.meal_name 
-    FROM meals m 
-    LEFT JOIN nutrition n ON m.meal_id = n.meal_id 
-    WHERE n.meal_id IS NULL
-");
-
-if ($orphan_meals->num_rows === 0) {
+$orphan = $pdo->query("SELECT m.meal_id, m.meal_name FROM meals m LEFT JOIN nutrition n ON m.meal_id = n.meal_id WHERE n.meal_id IS NULL")->fetchAll();
+if (count($orphan) === 0) {
     echo "{$green}✓ All meals have nutrition data{$reset}\n";
 } else {
     echo "{$red}✗ Found meals without nutrition data:{$reset}\n";
-    while ($orphan = $orphan_meals->fetch_assoc()) {
-        echo "  {$red}✗{$reset} Meal ID {$orphan['meal_id']}: {$orphan['meal_name']}\n";
+    foreach ($orphan as $o) {
+        echo "  {$red}✗{$reset} Meal ID {$o['meal_id']}: {$o['meal_name']}\n";
     }
 }
 
-// Check for meals without category
-$invalid_meals = $conn->query("
-    SELECT m.meal_id, m.meal_name, m.category_id 
-    FROM meals m 
-    LEFT JOIN categories c ON m.category_id = c.category_id 
-    WHERE c.category_id IS NULL
-");
-
-if ($invalid_meals->num_rows === 0) {
+$invalid = $pdo->query("SELECT m.meal_id, m.meal_name, m.category_id FROM meals m LEFT JOIN categories c ON m.category_id = c.category_id WHERE c.category_id IS NULL")->fetchAll();
+if (count($invalid) === 0) {
     echo "{$green}✓ All meals have valid categories{$reset}\n";
 } else {
     echo "{$red}✗ Found meals with invalid categories:{$reset}\n";
-    while ($invalid = $invalid_meals->fetch_assoc()) {
-        echo "  {$red}✗{$reset} Meal ID {$invalid['meal_id']}: {$invalid['meal_name']} (category {$invalid['category_id']})\n";
+    foreach ($invalid as $inv) {
+        echo "  {$red}✗{$reset} Meal ID {$inv['meal_id']}: {$inv['meal_name']} (category {$inv['category_id']})\n";
     }
 }
 
-// Summary Statistics
+// Summary
 echo "\n{$blue}━━━ SUMMARY STATISTICS ━━━{$reset}\n";
-echo "  Database: {$green}$db_name{$reset}\n";
+echo "  Database: {$green}{$db_name}{$reset}\n";
 echo "  Tables: {$green}" . count($existing_tables) . "{$reset}\n";
-echo "  Categories: {$green}$cat_count{$reset}\n";
-echo "  Meals: {$green}$meal_count{$reset}\n";
-echo "  Nutrition records: {$green}$nut_count{$reset}\n";
+echo "  Categories: {$green}{$cat_count}{$reset}\n";
+echo "  Meals: {$green}{$meal_count}{$reset}\n";
+echo "  Nutrition records: {$green}{$nut_count}{$reset}\n";
 
-// Users validation
-$users_result = $conn->query("SELECT COUNT(*) as count FROM users");
-$users_row = $users_result->fetch_assoc();
-echo "  Registered users: {$green}" . $users_row['count'] . "{$reset}\n";
+$users_count = (int)$pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
+echo "  Registered users: {$green}{$users_count}{$reset}\n";
 
-// Shopping lists validation
-$shop_result = $conn->query("SELECT COUNT(*) as count FROM shopping_lists");
-$shop_row = $shop_result->fetch_assoc();
-echo "  Shopping lists: {$green}" . $shop_row['count'] . "{$reset}\n";
+$lists_count = (int)$pdo->query("SELECT COUNT(*) FROM shopping_lists")->fetchColumn();
+echo "  Shopping lists: {$green}{$lists_count}{$reset}\n";
 
-// Final Result
 echo "\n{$blue}═══════════════════════════════════════════════════════{$reset}\n";
 
-if ($cat_count === 3 && $meal_count === 22 && $nut_count === 22 && $orphan_meals->num_rows === 0) {
+if ($cat_count === 3 && $meal_count === 22 && $nut_count === 22 && count($orphan) === 0) {
     echo "{$green}✓✓✓ DATABASE VALIDATION SUCCESSFUL ✓✓✓{$reset}\n";
-    echo "{$green}All data is properly seeded and validated!{$reset}\n";
 } else {
     echo "{$yellow}⚠ DATABASE VALIDATION INCOMPLETE{$reset}\n";
-    echo "{$yellow}Some data may be missing. Please check the issues above.{$reset}\n";
 }
 
-echo "{$blue}═══════════════════════════════════════════════════════{$reset}\n";
-
-$conn->close();
 ?>

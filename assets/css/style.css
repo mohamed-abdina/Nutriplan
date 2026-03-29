@@ -1,3 +1,128 @@
+/* --- Touch-Friendly & Accessibility Improvements --- */
+.btn, button, .btn-sm, .btn-outline, .btn-ghost {
+    min-height: 44px;
+    min-width: 44px;
+    font-size: var(--text-base);
+    touch-action: manipulation;
+}
+
+button:focus-visible, .btn:focus-visible, a:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    z-index: 2;
+}
+
+.nav-item a, .sidebar-footer a, .sidebar-footer button {
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    font-size: var(--text-base);
+}
+
+.hamburger {
+    touch-action: manipulation;
+}
+
+.sidebar {
+    /* Ensure ARIA landmark is clear for screen readers */
+    aria-label: Main navigation;
+}
+/* --- Expanded Responsive Grid Breakpoints --- */
+@media (max-width: 900px) {
+    .grid-2, .grid-3, .grid-4 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+@media (max-width: 640px) {
+    .grid-2, .grid-3, .grid-4 {
+        grid-template-columns: 1fr;
+    }
+}
+@media (max-width: 480px) {
+    .grid-2, .grid-3, .grid-4 {
+        grid-template-columns: 1fr;
+        gap: var(--sp-4);
+    }
+    .main { padding: var(--sp-2); }
+}
+/* ========== DASHBOARD UTILITY CLASSES ========== */
+.mt-12 { margin-top: var(--sp-12); }
+.mb-2 { margin-bottom: var(--sp-2); }
+.mb-4 { margin-bottom: var(--sp-4); }
+.mb-6 { margin-bottom: var(--sp-6); }
+.bg-overlay { background: var(--overlay); }
+.border { border: 1px solid var(--border); }
+.radius-14 { border-radius: 14px; }
+.p-8 { padding: var(--sp-8); }
+.text-center { text-align: center; }
+.no-underline { text-decoration: none; }
+.text-1 { color: var(--text-1); }
+/* ========== SIDEBAR & HAMBURGER (RESPONSIVE) ========== */
+.hamburger {
+    display: none;
+    position: fixed;
+    top: 18px;
+    left: 18px;
+    z-index: 1201;
+    width: 40px;
+    height: 40px;
+    background: none;
+    border: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.2s;
+}
+.hamburger-bar {
+    width: 28px;
+    height: 4px;
+    background: var(--text-1);
+    margin: 3px 0;
+    border-radius: 2px;
+    transition: all 0.3s;
+}
+
+@media (max-width: 1023px) {
+    .hamburger {
+        display: flex;
+    }
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        width: 220px;
+        max-width: 80vw;
+        background: var(--surface);
+        box-shadow: var(--shadow-lg);
+        z-index: 1200;
+        transform: translateX(-100%);
+        transition: transform 0.3s var(--ease-out);
+    }
+    .sidebar.open {
+        transform: translateX(0);
+    }
+    /* Overlay for mobile nav */
+    body:has(.sidebar.open)::before {
+        content: '';
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.3);
+        z-index: 1199;
+    }
+}
+
+@media (max-width: 767px) {
+    .sidebar {
+        width: 80vw;
+        min-width: 180px;
+        max-width: 320px;
+    }
+}
 /* ========================================
    NUTRIPLAN - COMPLETE DESIGN SYSTEM
    Design tokens, components, animations
@@ -201,7 +326,7 @@ small, .text-sm {
 }
 
 .sidebar {
-    width: 220px;
+    width: clamp(180px, 22vw, 240px);
     position: fixed;
     top: 0;
     left: 0;
@@ -216,10 +341,20 @@ small, .text-sm {
 }
 
 .main {
-    margin-left: 220px;
-    padding: var(--sp-8);
+    margin-left: clamp(180px, 22vw, 240px);
+    padding: var(--sp-3);
     min-height: 100dvh;
     background: var(--bg);
+    max-width: calc(100% - clamp(180px, 22vw, 240px));
+    overflow-x: hidden;
+}
+
+@media (min-width: 1700px) {
+    .main {
+        margin-left: clamp(180px, 22vw, 240px);
+        margin-right: auto;
+        max-width: clamp(1200px, 70vw, 1600px);
+    }
 }
 
 .topbar {
@@ -977,18 +1112,35 @@ small, .text-sm {
 }
 
 .grid-2 {
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: var(--sp-6);
 }
 
 .grid-3 {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: var(--sp-6);
 }
 
 .grid-4 {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: var(--sp-6);
+}
+
+@media (min-width: 1400px) {
+    .grid-2 {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .grid-3 {
+        grid-template-columns: repeat(4, 1fr);
+    }
+    
+    .grid-4 {
+        grid-template-columns: repeat(5, 1fr);
+    }
 }
 
 .flex {
@@ -1078,9 +1230,357 @@ small, .text-sm {
     .card {
         padding: var(--sp-4);
     }
+
+    /* Desktop responsive adjustments */
+    .meal-detail-grid {
+        grid-template-columns: 1fr !important;
+        max-width: 100%;
+    }
+
+    .meal-actions {
+        grid-template-columns: 1fr 1fr !important;
+    }
+
+    .nutrition-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .profile-stats {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    .custom-item-form {
+        grid-template-columns: 1fr 1fr !important;
+    }
 }
 
-@media (max-width: 480px) {
+@media (min-width: 1024px) and (max-width: 1399px) {
+    .meal-detail-grid {
+        grid-template-columns: 1fr 1fr !important;
+    }
+
+    .meal-actions {
+        grid-template-columns: 1fr 1fr !important;
+    }
+
+    .nutrition-grid {
+        grid-template-columns: 1fr 1fr !important;
+    }
+
+    .profile-stats {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+
+    .custom-item-form {
+        grid-template-columns: 1fr 1fr auto !important;
+    }
+}
+
+@media (min-width: 1400px) {
+    .meal-detail-grid {
+        grid-template-columns: 1fr 1fr !important;
+    }
+
+    .meal-actions {
+        grid-template-columns: 1fr 1fr !important;
+    }
+
+    .nutrition-grid {
+        grid-template-columns: 1fr 1fr !important;
+    }
+
+    .profile-stats {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+
+    .custom-item-form {
+        grid-template-columns: 1fr 1fr auto !important;
+    }
+}
+/* ========================================
+   RESPONSIVE UTILITY CLASSES
+   ======================================== */
+
+/* Two-column layout for meal.php and similar */
+.two-column-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp-8);
+    margin-bottom: var(--sp-8);
+}
+
+/* Split layout for register.php (44% left / 56% right) */
+.split-layout {
+    display: grid;
+    grid-template-columns: 44% 56%;
+    gap: 0;
+    min-height: 100dvh;
+}
+
+.split-layout-left {
+    background: var(--surface);
+    padding: var(--sp-8);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.split-layout-right {
+    background: var(--bg);
+    padding: var(--sp-8);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow-y: auto;
+}
+
+/* Responsive profile card */
+.responsive-profile-card {
+    text-align: center;
+    margin-bottom: var(--sp-8);
+}
+
+.responsive-navbar {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    height: 64px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--sp-8);
+    z-index: 100;
+    transition: backdrop-filter 300ms;
+}
+
+/* Tab button styling (consistent across pages) */
+.tab-button-group {
+    display: flex;
+    gap: var(--sp-6);
+    margin-bottom: var(--sp-6);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: var(--sp-4);
+    overflow-x: auto;
+}
+
+.tab-button {
+    background: none;
+    border: none;
+    color: var(--text-2);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    padding: 0;
+    transition: color 200ms;
+}
+
+.tab-button.active {
+    color: var(--text-1);
+    border-bottom: 2px solid var(--primary);
+    padding-bottom: var(--sp-2);
+}
+
+/* Progress bar container */
+.progress-container {
+    margin-bottom: var(--sp-8);
+}
+
+.progress-bar-track {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background: var(--grad-success);
+    transition: width 300ms var(--ease-smooth);
+}
+
+/* List item layout */
+.list-item-layout {
+    display: flex;
+    align-items: center;
+    padding: var(--sp-4);
+    border-bottom: 1px solid var(--border);
+    transition: opacity var(--dur-normal);
+}
+
+.list-item-checkbox {
+    width: 20px;
+    height: 20px;
+    margin-right: var(--sp-4);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.list-item-content {
+    flex: 1;
+}
+
+.list-item-name {
+    color: var(--text-1);
+    font-weight: 500;
+}
+
+.list-item-quantity {
+    color: var(--text-2);
+    font-size: var(--text-sm);
+    margin-top: var(--sp-1);
+}
+
+.list-item-checked .list-item-name {
+    text-decoration: line-through;
+    opacity: 0.5;
+}
+
+/* Form layout for shopping/profile */
+.form-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp-4);
+    margin-bottom: var(--sp-6);
+}
+
+.form-input {
+    padding: var(--sp-3);
+    background: var(--inset);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-1);
+    font-size: var(--text-base);
+}
+
+/* Hero section buttons */
+.hero-button-group {
+    display: flex;
+    gap: var(--sp-4);
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: var(--sp-12);
+}
+
+/* Social proof grid */
+.social-proof-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: var(--sp-6);
+    margin-top: var(--sp-12);
+}
+
+/* Stats grid responsive */
+.stats-grid-auto {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: var(--sp-6);
+    margin-top: var(--sp-8);
+}
+
+/* Back link styling */
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    color: var(--primary);
+    text-decoration: none;
+    margin-bottom: var(--sp-6);
+    transition: color 200ms;
+}
+
+.back-link:hover {
+    color: var(--accent);
+}
+
+/* Nutrition info SVG */
+.nutrition-ring {
+    width: 200px;
+    height: 200px;
+    margin: 0 auto;
+    display: block;
+    margin-bottom: var(--sp-6);
+}
+
+/* Tab content panels */
+.tab-panel {
+    display: none;
+}
+
+.tab-panel.active {
+    display: block;
+}
+
+.tab-panel.hidden {
+    display: none;
+}
+
+/* Override inline hardcoded grids with responsive behavior */
+div[style*="grid-template-columns: 1fr 1fr 1fr"] {
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)) !important;
+}
+
+@media (min-width: 900px) and (max-width: 1200px) {
+    div[style*="grid-template-columns: 1fr 1fr 1fr"] {
+        grid-template-columns: 1fr 1fr 1fr !important;
+    }
+}
+
+@media (max-width: 768px) {
+    div[style*="grid-template-columns: 1fr 1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* Desktop layout fixes - constrain main area for better content width */
+@media (min-width: 1600px) {
+    .app-shell {
+        grid-template-columns: 240px 1fr;
+    }
+    
+    .sidebar {
+        width: 240px;
+    }
+    
+    .main {
+        margin-left: 240px;
+        max-width: calc(100vw - 240px);
+        padding: var(--sp-10) var(--sp-12);
+    }
+}
+
+@media (min-width: 1400px) and (max-width: 1599px) {
+    .main {
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+}
+
+/* Responsive grid override for common breakpoints */
+@media (max-width: 900px) {
+    div[style*="grid-template-columns: 1fr 1fr 1fr"] {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+    
+    div[style*="grid-template-columns: 1fr 1fr 1fr; gap"] {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+@media (max-width: 640px) {
+    div[style*="grid-template-columns: 1fr 1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+    }
+    
+    div[style*="grid-template-columns: 1fr 1fr auto"] {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* Mobile phone (320px - 479px) */
+@media (max-width: 479px) {
     .grid-2,
     .grid-3,
     .grid-4 {
@@ -1094,10 +1594,268 @@ small, .text-sm {
     .modal {
         max-width: 95%;
         padding: var(--sp-4);
+        top: 8%;
+        transform: translate(-50%, 0) scale(1);
+        max-height: 84vh;
     }
 
     .toast {
         right: var(--sp-4);
         left: var(--sp-4);
     }
+
+    /* Reduce heavy paddings and typography on very small phones */
+    .main { padding: var(--sp-3); }
+    .topbar { padding: var(--sp-3) 0; }
+    :root {
+        --text-hero: clamp(1.5rem, 1.2rem + 2vw, 2.5rem);
+        --text-3xl: clamp(1.2rem, 1rem + 1vw, 1.8rem);
+    }
+
+    .field input,
+    .field textarea,
+    .field select {
+        padding: 12px 12px 8px;
+        min-height: 44px;
+        font-size: var(--text-sm);
+    }
 }
+
+/* Small tablet (480px - 767px) */
+@media (min-width: 480px) and (max-width: 767px) {
+    .main { padding: var(--sp-4); }
+    .topbar { padding: var(--sp-4) 0; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .grid-3 { grid-template-columns: repeat(2, 1fr); }
+    .btn { width: auto; }
+
+    .field input,
+    .field textarea,
+    .field select {
+        padding: 14px 12px 8px;
+        min-height: 48px;
+    }
+}
+
+/* Medium tablet (768px - 1023px) - collapsed sidebar, not overlay */
+@media (min-width: 768px) and (max-width: 1023px) {
+    .sidebar {
+        position: sticky;
+        top: 0;
+        width: 200px;
+        max-width: none;
+        transform: none !important;
+        height: auto;
+    }
+
+    .main {
+        margin-left: 200px;
+        padding: var(--sp-6);
+        max-width: calc(100% - 200px);
+    }
+
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+
+    /* Collapsed sidebar state for tablets */
+    .sidebar.collapsed {
+        width: 64px;
+        padding-left: var(--sp-3);
+        padding-right: var(--sp-3);
+    }
+
+    /* Adjust main when sidebar collapsed */
+    .sidebar.collapsed ~ .main,
+    .main.sidebar-collapsed {
+        margin-left: 64px;
+        max-width: calc(100% - 64px);
+    }
+
+    /* Simplify nav items when collapsed */
+    .sidebar.collapsed .nav-item a {
+        justify-content: center;
+        padding-left: 6px;
+        padding-right: 6px;
+    }
+
+    .sidebar.collapsed .sidebar-logo,
+    .sidebar.collapsed .nav-item a .label {
+        display: none;
+    }
+}
+
+/* Desktop small (1024px - 1399px) - ensure 2 columns for grid-2 */
+@media (min-width: 1024px) and (max-width: 1399px) {
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+    
+    /* Responsive utility classes - Desktop Small */
+    .form-grid-2 {
+        grid-template-columns: 1fr 1fr;
+        gap: var(--sp-4);
+    }
+}
+
+/* Mobile phone (≤ 479px) - Add responsive utility class support */
+@media (max-width: 479px) {
+    /* Responsive utility classes - Mobile */
+    .two-column-layout {
+        grid-template-columns: 1fr;
+        gap: var(--sp-4);
+        margin-bottom: var(--sp-6);
+    }
+    
+    .split-layout {
+        grid-template-columns: 1fr;
+        gap: 0;
+        min-height: auto;
+    }
+    
+    .split-layout-left,
+    .split-layout-right {
+        min-height: auto;
+        padding: var(--sp-4);
+    }
+    
+    .form-grid-2 {
+        grid-template-columns: 1fr;
+        gap: var(--sp-3);
+        margin-bottom: var(--sp-4);
+    }
+    
+    .hero-button-group {
+        gap: var(--sp-2);
+        margin-bottom: var(--sp-6);
+    }
+    
+    .social-proof-grid {
+        grid-template-columns: 1fr;
+        gap: var(--sp-4);
+        margin-top: var(--sp-6);
+    }
+    
+    .stats-grid-auto {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--sp-4);
+        margin-top: var(--sp-4);
+    }
+    
+    .responsive-navbar {
+        height: 56px;
+        padding: 0 var(--sp-4);
+    }
+    
+    .tab-button-group {
+        gap: var(--sp-3);
+        margin-bottom: var(--sp-4);
+        padding-bottom: var(--sp-3);
+    }
+    
+    .tab-button {
+        font-size: var(--text-xs);
+    }
+    
+    .nutrition-ring {
+        width: 150px;
+        height: 150px;
+        margin-bottom: var(--sp-4);
+    }
+}
+
+/* Small tablet (480px - 767px) - Add responsive utility class support */
+@media (min-width: 480px) and (max-width: 767px) {
+    /* Responsive utility classes - Small Tablet */
+    .two-column-layout {
+        grid-template-columns: 1fr;
+        gap: var(--sp-4);
+    }
+    
+    .split-layout {
+        grid-template-columns: 1fr;
+        gap: 0;
+        min-height: auto;
+    }
+    
+    .split-layout-left,
+    .split-layout-right {
+        min-height: auto;
+        padding: var(--sp-6);
+    }
+    
+    .form-grid-2 {
+        grid-template-columns: 1fr;
+        gap: var(--sp-4);
+    }
+    
+    .hero-button-group {
+        flex-direction: column;
+    }
+    
+    .social-proof-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--sp-4);
+    }
+    
+    .stats-grid-auto {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--sp-4);
+    }
+    
+    .responsive-navbar {
+        height: 56px;
+        padding: 0 var(--sp-4);
+    }
+    
+    .nutrition-ring {
+        width: 180px;
+        height: 180px;
+    }
+}
+
+/* Medium tablet (768px - 1023px) - Add responsive utility class support */
+@media (min-width: 768px) and (max-width: 1023px) {
+    /* Responsive utility classes - Medium Tablet */
+    .two-column-layout {
+        grid-template-columns: 1fr;
+        gap: var(--sp-6);
+    }
+    
+    .form-grid-2 {
+        grid-template-columns: 1fr;
+        gap: var(--sp-4);
+    }
+    
+    .social-proof-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: var(--sp-6);
+    }
+    
+    .stats-grid-auto {
+        grid-template-columns: repeat(3, 1fr);
+        gap: var(--sp-6);
+    }
+}
+
+/* Large desktop (≥ 1600px) */
+@media (min-width: 1600px) {
+    .app-shell {
+        grid-template-columns: 240px 1fr;
+    }
+    
+    .sidebar {
+        width: 240px;
+    }
+    
+    .main {
+        margin-left: 240px;
+        max-width: calc(100vw - 240px);
+        padding: var(--sp-10) var(--sp-12);
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }

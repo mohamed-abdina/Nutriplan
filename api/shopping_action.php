@@ -1,30 +1,64 @@
 <?php
 // Shopping list action API
 header('Content-Type: application/json');
-session_start();
+require_once __DIR__ . '/../includes/session.php';
+secure_session_start();
 
 require_once '../includes/db_connect.php';
 require_once '../includes/auth_check.php';
+require_once '../includes/rate_limit.php';
+require_once '../includes/error_logger.php';
+require_once __DIR__ . '/../includes/csrf.php';
+
+// Apply rate limiting (10 requests per 60 seconds)
+if (!$limiter->check_rate_limit('shopping_action', 10, 60)) {
+    http_response_code(429);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Too many requests. Please try again later.',
+        'remaining' => 0
+    ]);
+    $error_logger->log_security_event('RATE_LIMIT_EXCEEDED', ['endpoint' => 'shopping_action']);
+    exit;
+}
+
+if (!isset($_SESSION['user_id'])) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+    exit;
+}
 
 $user_id = $_SESSION['user_id'];
 $action = isset($_POST['action']) ? sanitize_input($_POST['action']) : '';
 
+// Log API call
+$error_logger->log_api_call('shopping_action', 'POST', ['action' => $action], 200);
+
+// CSRF protection for state-changing requests
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $csrf_token = $_POST['csrf_token'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
+    if (!validate_csrf($csrf_token)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Invalid CSRF token']);
+        exit;
+    }
+}
+
 // Get or create default shopping list
-$list_result = $conn->query("SELECT list_id FROM shopping_lists WHERE user_id = $user_id ORDER BY created_at DESC LIMIT 1");
-if ($list_result && $list_result->num_rows > 0) {
-    $list = $list_result->fetch_assoc();
-    $list_id = $list['list_id'];
+$row = pdo_fetch_one("SELECT list_id FROM shopping_lists WHERE user_id = :user_id ORDER BY created_at DESC LIMIT 1", [':user_id' => (int)$user_id]);
+if ($row && isset($row['list_id'])) {
+    $list_id = $row['list_id'];
 } else {
-    $conn->query("INSERT INTO shopping_lists (user_id, list_name) VALUES ($user_id, 'My Shopping List')");
-    $list_id = $conn->insert_id;
+    pdo_query("INSERT INTO shopping_lists (user_id, list_name) VALUES (:user_id, :name)", [':user_id' => (int)$user_id, ':name' => 'My Shopping List']);
+    global $pdo;
+    $list_id = (int)$pdo->lastInsertId();
 }
 
 if ($action === 'add') {
     $meal_id = isset($_POST['meal_id']) ? (int)$_POST['meal_id'] : 0;
     
     if ($meal_id > 0) {
-        $conn->query("INSERT INTO shopping_items (list_id, meal_id, quantity) 
-                     VALUES ($list_id, $meal_id, '1 serving')");
+        pdo_query("INSERT INTO shopping_items (list_id, meal_id, quantity) VALUES (:list_id, :meal_id, :qty)", [':list_id' => $list_id, ':meal_id' => $meal_id, ':qty' => '1 serving']);
         echo json_encode(['success' => true, 'message' => 'Added to list']);
     } else {
         echo json_encode(['success' => false, 'message' => 'Invalid meal']);
@@ -34,7 +68,7 @@ elseif ($action === 'toggle') {
     $item_id = isset($_POST['item_id']) ? (int)$_POST['item_id'] : 0;
     
     if ($item_id > 0) {
-        $conn->query("UPDATE shopping_items SET purchased = NOT purchased WHERE item_id = $item_id");
+        pdo_query("UPDATE shopping_items SET purchased = NOT purchased WHERE item_id = :item_id", [':item_id' => $item_id]);
         echo json_encode(['success' => true, 'message' => 'Updated']);
     } else {
         echo json_encode(['success' => false, 'message' => 'Invalid item']);
@@ -44,7 +78,7 @@ elseif ($action === 'delete') {
     $item_id = isset($_POST['item_id']) ? (int)$_POST['item_id'] : 0;
     
     if ($item_id > 0) {
-        $conn->query("DELETE FROM shopping_items WHERE item_id = $item_id");
+        pdo_query("DELETE FROM shopping_items WHERE item_id = :item_id", [':item_id' => $item_id]);
         echo json_encode(['success' => true, 'message' => 'Deleted']);
     } else {
         echo json_encode(['success' => false, 'message' => 'Invalid item']);
@@ -55,8 +89,7 @@ elseif ($action === 'add_custom') {
     $quantity = isset($_POST['qty']) ? sanitize_input($_POST['qty']) : '1';
     
     if (!empty($item_name)) {
-        $conn->query("INSERT INTO shopping_items (list_id, item_name, quantity, custom_item) 
-                     VALUES ($list_id, '$item_name', '$quantity', TRUE)");
+        pdo_query("INSERT INTO shopping_items (list_id, item_name, quantity, custom_item) VALUES (:list_id, :name, :qty, :custom)", [':list_id' => $list_id, ':name' => $item_name, ':qty' => $quantity, ':custom' => 1]);
         echo json_encode(['success' => true, 'message' => 'Custom item added']);
     } else {
         echo json_encode(['success' => false, 'message' => 'Item name required']);

@@ -1,15 +1,12 @@
 <?php
-session_start();
+require_once __DIR__ . '/includes/session.php';
+secure_session_start();
 require_once 'includes/db_connect.php';
 require_once 'includes/auth_check.php';
 require_once 'includes/functions.php';
 
 // Get all categories for filter chips
-$categories = [];
-$cat_result = $conn->query("SELECT category_id, category_name, category_icon FROM categories ORDER BY category_id");
-while ($row = $cat_result->fetch_assoc()) {
-    $categories[] = $row;
-}
+$categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FROM categories ORDER BY category_id") ?? [];
 ?>
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">

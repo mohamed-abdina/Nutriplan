@@ -1,41 +1,111 @@
 <?php
-session_start();
+// Start output buffering to control any stray output
+
+// Debug: Log request method and AJAX detection (safe, only if writable)
+$debug_log = __DIR__ . '/logs/login_debug.log';
+if (@is_writable(dirname($debug_log))) {
+    @file_put_contents($debug_log, date('c') . " | METHOD: " . $_SERVER['REQUEST_METHOD'] . " | AJAX: " . (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) ? $_SERVER['HTTP_X_REQUESTED_WITH'] : 'none') . "\n", FILE_APPEND);
+}
+ob_start();
+
+require_once __DIR__ . '/includes/session.php';
+secure_session_start();
 require_once 'includes/db_connect.php';
+// Optional: centralized logger for detailed debug output
+if (file_exists(__DIR__ . '/includes/error_logger.php')) {
+    require_once __DIR__ . '/includes/error_logger.php';
+}
 
 // If already logged in, redirect to dashboard
 if (isset($_SESSION['user_id'])) {
+    ob_end_clean();
     header('Location: dashboard.php');
     exit;
 }
 
 $error = '';
+$is_ajax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = sanitize_input($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
+    // Log request details for debugging (redact sensitive fields)
+    if (isset($error_logger)) {
+        $headers = function_exists('getallheaders') ? getallheaders() : [];
+        $masked = ['email' => $email, 'password' => '[REDACTED]'];
+        $error_logger->log_api_call('/login.php', 'POST', $masked, null);
+        $error_logger->log_error(E_USER_NOTICE, 'Login POST received', __FILE__, __LINE__, ['headers' => $headers]);
+    }
+    // Debug: Log POST data (redacted password)
+    if (@is_writable(dirname($debug_log))) {
+        @file_put_contents($debug_log, date('c') . " | POST: " . json_encode(['email' => $email, 'password' => '[REDACTED]']) . "\n", FILE_APPEND);
+    }
     
     if (empty($email) || empty($password)) {
         $error = 'Email and password required';
     } else {
-        // Check user
-        $result = $conn->query("SELECT user_id, username, password_hash FROM users WHERE email = '$email'");
-        
-        if ($result && $result->num_rows > 0) {
-            $user = $result->fetch_assoc();
-            
-            if (password_verify($password, $user['password_hash'])) {
+        // Check user using PDO prepared statement
+        $user = pdo_fetch_one('SELECT user_id, username, password_hash FROM users WHERE email = ?', [$email]);
+        if ($user && is_array($user)) {
+            $hash = $user['password_hash'] ?? '';
+            if (password_verify($password, $hash)) {
                 $_SESSION['user_id'] = $user['user_id'];
                 $_SESSION['username'] = $user['username'];
-                header('Location: dashboard.php');
+                // Log successful login event (do not include password)
+                if (isset($error_logger)) {
+                    $error_logger->log_security_event('LOGIN_SUCCESS', ['user_id' => $user['user_id'], 'email' => $email, 'session_id' => session_id()]);
+                }
+                
+                // If AJAX request, return JSON and exit before outputting HTML
+                if ($is_ajax) {
+                    ob_end_clean();
+                    header('Content-Type: application/json; charset=utf-8');
+                    echo json_encode(['success' => true, 'message' => 'Login successful', 'redirect' => '/dashboard.php']);
+                    exit;
+                }
+                
+                // Non-AJAX: redirect
+                ob_end_clean();
+                header('Location: /dashboard.php');
                 exit;
             } else {
                 $error = 'Invalid email or password';
+                if (isset($error_logger)) {
+                    $error_logger->log_security_event('LOGIN_FAILED', ['email' => $email, 'reason' => 'bad_password']);
+                }
             }
         } else {
             $error = 'Invalid email or password';
         }
     }
+    
+    // If we're here and it's AJAX, return error JSON
+    if ($is_ajax) {
+        ob_end_clean();
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['success' => false, 'message' => $error ?: 'Invalid credentials', 'redirect' => null, 'debug' => 'AJAX POST error']);
+        // Debug: Log AJAX error response
+        if (@is_writable(dirname($debug_log))) {
+            @file_put_contents($debug_log, date('c') . " | AJAX ERROR: " . ($error ?: 'Invalid credentials') . "\n", FILE_APPEND);
+        }
+        exit;
+    }
 }
+
+// For non-POST AJAX requests, return error
+if ($is_ajax) {
+    ob_end_clean();
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['success' => false, 'message' => 'Invalid request', 'redirect' => null, 'debug' => 'AJAX non-POST error']);
+    // Debug: Log AJAX non-POST error
+    if (@is_writable(dirname($debug_log))) {
+        @file_put_contents($debug_log, date('c') . " | AJAX NON-POST ERROR\n", FILE_APPEND);
+    }
+    exit;
+}
+
+// If we reach here, output the HTML (end buffering first)
+ob_end_flush();
 ?>
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
@@ -47,9 +117,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
-    <div class="flex" style="min-height: 100dvh;">
+    <div class="split-layout">
         <!-- Left Panel -->
-        <div style="width: 44%; background: var(--surface); padding: var(--sp-8); display: flex; flex-direction: column; justify-content: center;">
+        <div class="split-layout-left">
             <div style="margin-bottom: var(--sp-12);">
                 <div style="font-size: var(--text-3xl); font-weight: 800; margin-bottom: var(--sp-6);">🍽 NutriPlan</div>
                 <h1 class="text-gradient">Smart Meal Planning</h1>
@@ -65,7 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
         
         <!-- Right Panel (Form) -->
-        <div style="width: 56%; background: var(--bg); padding: var(--sp-8); display: flex; flex-direction: column; justify-content: center;">
+        <div class="split-layout-right">
             <div style="max-width: 400px; margin: 0 auto; width: 100%;">
                 <h2 style="margin-bottom: var(--sp-8);">Welcome Back</h2>
                 
@@ -100,6 +170,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
     
     <script src="assets/js/main.js" defer></script>
+    <!-- Debug: Show AJAX errors on page -->
+    <script>
+    // Patch: Show AJAX errors on page for debugging
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.sessionStorage && sessionStorage.loginAjaxError) {
+            var dbg = document.createElement('div');
+            dbg.style = 'background: #fee; color: #b00; border: 1px solid #b00; padding: 8px; margin-bottom: 12px;';
+            dbg.textContent = '[AJAX ERROR] ' + sessionStorage.loginAjaxError;
+            var form = document.querySelector('form.ajax-form');
+            if (form) form.parentNode.insertBefore(dbg, form);
+            sessionStorage.removeItem('loginAjaxError');
+        }
+    });
+    // Patch main.js to store AJAX error
+    (function() {
+        var origFetch = window.fetch;
+        window.fetch = function() {
+            return origFetch.apply(this, arguments).then(function(resp) {
+                if (resp && resp.headers && resp.headers.get('content-type') && resp.headers.get('content-type').includes('application/json')) {
+                    return resp.clone().json().then(function(data) {
+                        if (data && data.success === false && data.message) {
+                            if (window.sessionStorage) sessionStorage.loginAjaxError = data.message;
+                        }
+                        return resp;
+                    }).catch(function() { return resp; });
+                }
+                return resp;
+            });
+        };
+    })();
+    </script>
     <script>
         function togglePassword(id) {
             const pass = document.getElementById(id);

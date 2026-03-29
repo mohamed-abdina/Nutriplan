@@ -1,6 +1,7 @@
 <?php
 // Authentication check
-session_start();
+require_once __DIR__ . '/session.php';
+secure_session_start();
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../login.php');

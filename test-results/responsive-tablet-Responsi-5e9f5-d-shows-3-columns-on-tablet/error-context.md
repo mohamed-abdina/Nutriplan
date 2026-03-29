@@ -1,0 +1,55 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]: 🍽 NutriPlan
+    - generic [ref=e4]:
+      - link "Login" [ref=e5] [cursor=pointer]:
+        - /url: login.php
+      - link "Get Started Free" [ref=e6] [cursor=pointer]:
+        - /url: register.php
+  - generic [ref=e8]:
+    - heading "Smart Meal Planning, Zero Waste" [level=1] [ref=e9]
+    - paragraph [ref=e10]: Plan your meals for the week, reduce food waste, and eat healthier. It's simpler than you think.
+    - generic [ref=e11]:
+      - link "Start Planning Free →" [ref=e12] [cursor=pointer]:
+        - /url: register.php
+      - button "▶ Watch Demo" [ref=e13] [cursor=pointer]
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - generic [ref=e16]: "80"
+        - generic [ref=e17]: Meals in Library
+      - generic [ref=e18]:
+        - generic [ref=e19]: "16"
+        - generic [ref=e20]: "% Waste Reduction"
+      - generic [ref=e21]:
+        - generic [ref=e22]: "160"
+        - generic [ref=e23]: Active Users
+  - generic [ref=e25]:
+    - heading "Why Choose NutriPlan?" [level=2] [ref=e26]
+    - generic [ref=e27]:
+      - generic [ref=e28]:
+        - generic [ref=e29]: 📋
+        - heading "Smart Planning" [level=3] [ref=e30]
+        - paragraph [ref=e31]: Plan weekly meals in minutes. Our algorithm suggests diverse, nutritious combinations.
+      - generic [ref=e32]:
+        - generic [ref=e33]: 🧾
+        - heading "Automatic Lists" [level=3] [ref=e34]
+        - paragraph [ref=e35]: Your shopping list is generated automatically from meal plans. No more forgotten items.
+      - generic [ref=e36]:
+        - generic [ref=e37]: 💪
+        - heading "Nutrition Tracking" [level=3] [ref=e38]
+        - paragraph [ref=e39]: See full nutrition breakdown for every meal. Meet your dietary goals easily.
+      - generic [ref=e40]:
+        - generic [ref=e41]: 📱
+        - heading "Works Offline" [level=3] [ref=e42]
+        - paragraph [ref=e43]: As a PWA, NutriPlan works seamlessly on any device, online or offline.
+  - generic [ref=e45]:
+    - heading "Ready to transform your meals?" [level=2] [ref=e46]
+    - paragraph [ref=e47]: Join thousands of students planning smarter, wasting less, and eating better.
+    - link "Get Started Free 🚀" [ref=e48] [cursor=pointer]:
+      - /url: register.php
+  - contentinfo [ref=e49]:
+    - paragraph [ref=e50]: © 2024-2026 NutriPlan. Made with 🍽️ for better living.
+```

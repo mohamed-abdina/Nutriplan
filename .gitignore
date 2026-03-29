@@ -1,0 +1,85 @@
+# Environment & Configuration
+.env
+.env.local
+.env.*.local
+config/local_config.php
+
+# Database
+*.sql
+*.sqlite
+*.db
+seed_backup.php
+
+# Dependencies
+vendor/
+node_modules/
+composer.lock
+package-lock.json
+
+# User Uploads
+uploads/
+uploads/avatars/*
+!uploads/avatars/.gitkeep
+
+# Cache & Logs
+cache/
+logs/
+*.log
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.sublime-project
+*.sublime-workspace
+
+# PHP-specific
+.php_cs.cache
+.phpunit.cache/
+
+# Testing
+coverage/
+.coverage
+
+# Temporary Files
+tmp/
+temp/
+*.tmp
+
+# Documentation (Keep in repo)
+# README.md
+# QUICKSTART.md
+# API.md
+# PROJECT_SUMMARY.md
+# COMPLETION_CHECKLIST.md
+
+# Analytics (if added)
+analytics.json
+
+# Security
+.htpasswd
+private_keys/
+
+# Old/Backup Files
+*.bak
+*.backup
+old/
+deprecated/
+
+# OS-generated Files
+.AppleDouble
+.LSOverride
+ehthumbs.db
+
+# PWA specific (if caching user data)
+# service-worker-cache/
+
+# Analysis tools
+Analyse_Codebase_skill.md
+analysis_*.md
+
+test-results/core.*

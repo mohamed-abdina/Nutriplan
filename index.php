@@ -1,5 +1,6 @@
 <?php
-session_start();
+require_once __DIR__ . '/includes/session.php';
+secure_session_start();
 
 // If already logged in, redirect to dashboard
 if (isset($_SESSION['user_id'])) {
@@ -20,7 +21,7 @@ if (isset($_SESSION['user_id'])) {
 </head>
 <body>
     <!-- Navbar -->
-    <nav style="position: fixed; top: 0; width: 100%; height: 64px; background: var(--bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 var(--sp-8); z-index: 100; transition: backdrop-filter 300ms;">
+    <nav class="responsive-navbar">
         <div style="font-size: var(--text-xl); font-weight: 800;">🍽 NutriPlan</div>
         <div style="display: flex; gap: var(--sp-6); align-items: center;">
             <a href="login.php" style="color: var(--text-1); text-decoration: none;">Login</a>
@@ -34,13 +35,13 @@ if (isset($_SESSION['user_id'])) {
             <h1 class="hero-headline text-gradient" style="margin-bottom: var(--sp-6);">Smart Meal Planning, Zero Waste</h1>
             <p style="font-size: var(--text-lg); color: var(--text-2); margin-bottom: var(--sp-8);">Plan your meals for the week, reduce food waste, and eat healthier. It's simpler than you think.</p>
             
-            <div style="display: flex; gap: var(--sp-4); justify-content: center; flex-wrap: wrap; margin-bottom: var(--sp-12);">
+            <div class="hero-button-group">
                 <a href="register.php" class="btn btn-primary" style="animation: pulse 2s ease-in-out infinite;">Start Planning Free →</a>
                 <button class="btn btn-outline" onclick="alert('Demo video coming soon!')">▶ Watch Demo</button>
             </div>
             
             <!-- Social Proof -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-6); margin-top: var(--sp-12);">
+            <div class="social-proof-grid">
                 <div class="stagger-item">
                     <div style="font-size: var(--text-3xl); font-weight: 700; color: var(--primary);" data-count="500">0</div>
                     <div style="color: var(--text-2); font-size: var(--text-sm); margin-top: var(--sp-2);">Meals in Library</div>

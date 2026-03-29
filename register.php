@@ -1,5 +1,6 @@
 <?php
-session_start();
+require_once __DIR__ . '/includes/session.php';
+secure_session_start();
 require_once 'includes/db_connect.php';
 
 if (isset($_SESSION['user_id'])) {
@@ -58,9 +59,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
-    <div class="flex" style="min-height: 100dvh;">
+    <div class="split-layout">
         <!-- Left Panel -->
-        <div style="width: 44%; background: var(--surface); padding: var(--sp-8); display: flex; flex-direction: column; justify-content: center;">
+        <div class="split-layout-left">
             <div style="margin-bottom: var(--sp-12);">
                 <div style="font-size: var(--text-3xl); font-weight: 800; margin-bottom: var(--sp-6);">🍽 NutriPlan</div>
                 <h1 class="text-gradient">Join 1000s of Planners</h1>
@@ -80,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
         
         <!-- Right Panel (Form) -->
-        <div style="width: 56%; background: var(--bg); padding: var(--sp-8); display: flex; flex-direction: column; justify-content: center; overflow-y: auto;">
+        <div class="split-layout-right">
             <div style="max-width: 400px; margin: 0 auto; width: 100%; padding: var(--sp-6) 0;">
                 <h2 style="margin-bottom: var(--sp-8);">Create Account</h2>
                 
@@ -91,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php endif; ?>
                 
                 <form method="POST">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4);">
+                    <div class="form-grid-2">
                         <div class="field">
                             <input type="text" id="first_name" name="first_name" placeholder=" " required>
                             <label for="first_name">First Name</label>

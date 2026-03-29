@@ -1,13 +1,13 @@
 <?php
-session_start();
+require_once __DIR__ . '/includes/session.php';
+secure_session_start();
 require_once 'includes/db_connect.php';
 require_once 'includes/auth_check.php';
 
-$user_id = $_SESSION['user_id'];
+$user_id = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
 
 // Get user info
-$user_result = $conn->query("SELECT * FROM users WHERE user_id = $user_id");
-$user = $user_result->fetch_assoc();
+$user = pdo_fetch_one("SELECT * FROM users WHERE user_id = ?", [$user_id]) ?? [];
 
 // Handle profile updates
 $update_error = '';
@@ -30,11 +30,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Get user stats
-$meals_result = $conn->query("SELECT COUNT(DISTINCT DATE(created_at)) as days, COUNT(*) as total FROM meals");
-$meals_info = $meals_result->fetch_assoc();
+$meals_info = pdo_fetch_one("SELECT COUNT(DISTINCT DATE(created_at)) as days, COUNT(*) as total FROM meals") ?? ['days' => 0, 'total' => 0];
 
-$list_result = $conn->query("SELECT COUNT(*) as lists FROM shopping_lists WHERE user_id = $user_id");
-$list_info = $list_result->fetch_assoc();
+$list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE user_id = ?", [$user_id]) ?? ['lists' => 0];
 ?>
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
@@ -51,7 +49,7 @@ $list_info = $list_result->fetch_assoc();
         
         <main class="main page-enter">
             <!-- Profile Header -->
-            <div class="card" style="text-align: center; margin-bottom: var(--sp-8);">
+            <div class="responsive-profile-card card">
                 <div style="height: 4px; background: var(--grad-primary); margin: -24px -24px 0; margin-bottom: var(--sp-6);"></div>
                 <div style="position: relative; width: 96px; height: 96px; margin: 0 auto var(--sp-4);">
                     <div class="profile-avatar" style="width: 100%; height: 100%; background: var(--grad-primary); border-radius: 50%; background-size: cover; background-position: center;"></div>
@@ -63,7 +61,7 @@ $list_info = $list_result->fetch_assoc();
                 <p style="color: var(--text-2); margin-top: var(--sp-2);">@<?php echo $user['username']; ?></p>
                 
                 <!-- Stats -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-6); margin-top: var(--sp-8);">
+                <div class="stats-grid-auto">
                     <div>
                         <div style="font-size: var(--text-2xl); font-weight: 700; color: var(--primary);"><?php echo $meals_info['total']; ?></div>
                         <div style="font-size: var(--text-xs); color: var(--text-2);">Meals Saved</div>
@@ -80,9 +78,10 @@ $list_info = $list_result->fetch_assoc();
             </div>
             
             <!-- Settings Tabs -->
-            <div style="display: flex; gap: var(--sp-4); margin-bottom: var(--sp-6); border-bottom: 1px solid var(--border); padding-bottom: var(--sp-4);">
-                <button class="tab-btn active" data-tab="personal" style="background: none; border: none; color: var(--text-1); font-weight: 600; cursor: pointer; padding: 0;">👤 Personal Info</button>
-                <button class="tab-btn" data-tab="security" style="background: none; border: none; color: var(--text-2); font-weight: 600; cursor: pointer; padding: 0;">🔐 Security</button>
+            <div class="tab-button-group">
+                <button class="tab-btn tab-button active" data-tab="personal">👤 Personal Info</button>
+                <button class="tab-btn tab-button" data-tab="preferences">⚙️ Preferences</button>
+                <button class="tab-btn tab-button" data-tab="security">🔐 Security</button>
             </div>
             
             <!-- Personal Info Tab -->
@@ -97,7 +96,7 @@ $list_info = $list_result->fetch_assoc();
                     <form method="POST">
                         <input type="hidden" name="action" value="update_profile">
                         
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); margin-bottom: var(--sp-6);">
+                        <div class="form-grid-2">
                             <div class="field">
                                 <input type="text" name="first_name" value="<?php echo $user['first_name']; ?>" placeholder=" " required>
                                 <label>First Name</label>
@@ -120,6 +119,47 @@ $list_info = $list_result->fetch_assoc();
                         
                         <button type="submit" class="btn btn-primary">Save Changes</button>
                     </form>
+                </div>
+            </div>
+            
+            <!-- Preferences Tab -->
+            <div id="preferences" class="tab-panel hidden">
+                <div style="max-width: 500px;">
+                    <div id="preferences-content" style="background: var(--elevated); border-radius: 12px; padding: var(--sp-6);">
+                        <div class="field">
+                            <select id="portion-size" style="width: 100%; padding: var(--sp-3); background: var(--inset); border: 1px solid var(--border); border-radius: 8px; color: var(--text-1);">
+                                <option value="small">Small</option>
+                                <option value="normal" selected>Normal</option>
+                                <option value="large">Large</option>
+                                <option value="extra-large">Extra Large</option>
+                            </select>
+                            <label style="display: block; margin-top: var(--sp-2);">Portion Size</label>
+                        </div>
+                        
+                        <div class="field" style="margin-top: var(--sp-4);">
+                            <input type="text" id="dietary-restrictions" placeholder="e.g., Vegetarian, Vegan, Gluten-free" style="width: 100%; padding: var(--sp-3); background: var(--inset); border: 1px solid var(--border); border-radius: 8px; color: var(--text-1);">
+                            <label style="display: block; margin-top: var(--sp-2);">Dietary Restrictions</label>
+                        </div>
+                        
+                        <div class="field" style="margin-top: var(--sp-4);">
+                            <input type="text" id="allergies" placeholder="e.g., Peanuts, Shellfish, Dairy" style="width: 100%; padding: var(--sp-3); background: var(--inset); border: 1px solid var(--border); border-radius: 8px; color: var(--text-1);">
+                            <label style="display: block; margin-top: var(--sp-2);">Allergies</label>
+                        </div>
+                        
+                        <div class="field" style="margin-top: var(--sp-4);">
+                            <input type="text" id="preferred-cuisine" placeholder="e.g., African, Asian, Mediterranean" style="width: 100%; padding: var(--sp-3); background: var(--inset); border: 1px solid var(--border); border-radius: 8px; color: var(--text-1);">
+                            <label style="display: block; margin-top: var(--sp-2);">Preferred Cuisine</label>
+                        </div>
+                        
+                        <div style="margin-top: var(--sp-6);">
+                            <label style="display: flex; align-items: center; gap: var(--sp-2); cursor: pointer;">
+                                <input type="checkbox" id="notifications" checked style="width: 20px; height: 20px; cursor: pointer;">
+                                <span style="color: var(--text-1);">Enable Notifications</span>
+                            </label>
+                        </div>
+                        
+                        <button class="btn btn-primary" onclick="savePreferences()" style="margin-top: var(--sp-6); width: 100%;">Save Preferences</button>
+                    </div>
                 </div>
             </div>
             
@@ -167,6 +207,70 @@ $list_info = $list_result->fetch_assoc();
     
     <script src="assets/js/main.js" defer></script>
     <script>
+        // Load preferences on page load
+        window.addEventListener('load', loadPreferences);
+        
+        // Tab switching
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const tabName = this.getAttribute('data-tab');
+                document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+                document.querySelectorAll('.tab-btn').forEach(b => b.style.color = 'var(--text-2)');
+                document.getElementById(tabName).classList.remove('hidden');
+                this.style.color = 'var(--text-1)';
+            });
+        });
+        
+        function loadPreferences() {
+            fetch('api/user_preferences.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'action=get'
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.preferences) {
+                    const p = data.preferences;
+                    document.getElementById('portion-size').value = p.portion_size || 'normal';
+                    document.getElementById('dietary-restrictions').value = p.dietary_restrictions || '';
+                    document.getElementById('allergies').value = p.allergies || '';
+                    document.getElementById('preferred-cuisine').value = p.preferred_cuisine || '';
+                    document.getElementById('notifications').checked = p.notifications_enabled;
+                }
+            })
+            .catch(e => console.error('Error loading preferences:', e));
+        }
+        
+        function savePreferences() {
+            const formData = new URLSearchParams({
+                action: 'update',
+                portion_size: document.getElementById('portion-size').value,
+                dietary_restrictions: document.getElementById('dietary-restrictions').value,
+                allergies: document.getElementById('allergies').value,
+                preferred_cuisine: document.getElementById('preferred-cuisine').value,
+                notifications_enabled: document.getElementById('notifications').checked ? 1 : 0,
+                theme_preference: document.documentElement.getAttribute('data-theme') || 'dark'
+            });
+            
+            fetch('api/user_preferences.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Preferences saved successfully!', 'success');
+                } else {
+                    showToast('Error saving preferences', 'error');
+                }
+            })
+            .catch(e => {
+                console.error('Error:', e);
+                showToast('Error saving preferences', 'error');
+            });
+        }
+        
         document.getElementById('delete-confirm-input').addEventListener('input', (e) => {
             document.getElementById('delete-final-btn').disabled = e.target.value !== 'DELETE';
         });

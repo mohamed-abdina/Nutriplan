@@ -55,20 +55,52 @@ function initMobileMenu() {
     const navItems = document.querySelectorAll('.nav-item a');
     
     if (hamburger) {
+        // Toggle behaviour depends on viewport:
+        // - <=767px : off-canvas open/close
+        // - 768-1023px : collapse/expand sidebar (sticky)
         hamburger.addEventListener('click', () => {
-            sidebar.classList.toggle('open');
+            const w = window.innerWidth;
+            if (w <= 767) {
+                sidebar.classList.toggle('open');
+            } else if (w >= 768 && w <= 1023) {
+                sidebar.classList.toggle('collapsed');
+                // Add helper class to main for margin adjustments
+                const main = document.querySelector('.main');
+                if (main) main.classList.toggle('sidebar-collapsed');
+                // Ensure off-canvas state is cleared
+                sidebar.classList.remove('open');
+            }
         });
-        
+
         navItems.forEach(item => {
             item.addEventListener('click', () => {
-                sidebar.classList.remove('open');
+                if (window.innerWidth <= 767) {
+                    sidebar.classList.remove('open');
+                }
             });
         });
-        
-        // Close sidebar when clicking outside
+
+        // Close off-canvas sidebar when clicking outside (only for mobile)
         document.addEventListener('click', (e) => {
-            if (!sidebar.contains(e.target) && !hamburger.contains(e.target)) {
-                sidebar.classList.remove('open');
+            if (window.innerWidth <= 767) {
+                if (!sidebar.contains(e.target) && !hamburger.contains(e.target)) {
+                    sidebar.classList.remove('open');
+                }
+            }
+        });
+
+        // Normalize states on resize across breakpoints
+        window.addEventListener('resize', () => {
+            const w = window.innerWidth;
+            const main = document.querySelector('.main');
+            if (w > 1023) {
+                sidebar.classList.remove('collapsed', 'open');
+                if (main) main.classList.remove('sidebar-collapsed');
+            }
+            if (w <= 767) {
+                // ensure collapsed (tablet) state doesn't persist on small phones
+                sidebar.classList.remove('collapsed');
+                if (main) main.classList.remove('sidebar-collapsed');
             }
         });
     }
@@ -300,7 +332,21 @@ async function addToShoppingList(mealId) {
             body: `action=add&meal_id=${mealId}`
         });
         
-        const result = await response.json();
+        const contentType = response.headers.get('content-type') || '';
+        let result;
+        
+        if (contentType.includes('application/json')) {
+            try {
+                result = await response.json();
+            } catch (err) {
+                console.error('Failed to parse JSON:', err);
+                showToast('Server error: invalid response', 'error');
+                return;
+            }
+        } else {
+            showToast('Server error: expected JSON response', 'error');
+            return;
+        }
         
         if (result.success) {
             showToast('Added to shopping list!', 'success');
@@ -323,7 +369,20 @@ async function toggleShoppingItem(itemId) {
             body: `action=toggle&item_id=${itemId}`
         });
         
-        const result = await response.json();
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+            showToast('Server error: expected JSON response', 'error');
+            return;
+        }
+        
+        let result;
+        try {
+            result = await response.json();
+        } catch (err) {
+            console.error('Failed to parse JSON:', err);
+            showToast('Server error: invalid response', 'error');
+            return;
+        }
         
         if (result.success) {
             // Update UI
@@ -351,7 +410,20 @@ async function deleteShoppingItem(itemId) {
                 body: `action=delete&item_id=${itemId}`
             });
             
-            const result = await response.json();
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                showToast('Server error: expected JSON response', 'error');
+                return;
+            }
+            
+            let result;
+            try {
+                result = await response.json();
+            } catch (err) {
+                console.error('Failed to parse JSON:', err);
+                showToast('Server error: invalid response', 'error');
+                return;
+            }
             
             if (result.success) {
                 const itemElement = document.querySelector(`[data-item-id="${itemId}"]`);
@@ -433,7 +505,20 @@ async function handleAvatarUpload(file) {
             body: formData
         });
         
-        const result = await response.json();
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+            showToast('Server error: expected JSON response', 'error');
+            return;
+        }
+        
+        let result;
+        try {
+            result = await response.json();
+        } catch (err) {
+            console.error('Failed to parse JSON:', err);
+            showToast('Server error: invalid response', 'error');
+            return;
+        }
         
         if (result.success) {
             showToast('Avatar updated!', 'success');
@@ -462,7 +547,21 @@ async function checkUsernameAvailability(username) {
     usernameCheckTimeout = setTimeout(async () => {
         try {
             const response = await fetch(`/api/check_username.php?username=${username}`);
-            const result = await response.json();
+            
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                clearUsernameStatus();
+                return;
+            }
+            
+            let result;
+            try {
+                result = await response.json();
+            } catch (err) {
+                console.error('Failed to parse JSON:', err);
+                clearUsernameStatus();
+                return;
+            }
             
             const statusEl = document.querySelector('.username-status');
             if (statusEl) {
@@ -522,19 +621,26 @@ function animatePageEnter() {
 window.addEventListener('load', animatePageEnter);
 
 // ========================================
-// SECTION 16: SERVICE WORKER REGISTRATION
+// SECTION 16: SERVICE WORKER REGISTRATION (dev toggle)
 // ========================================
 
 if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-            .then(registration => {
-                console.log('Service Worker registered:', registration);
-            })
-            .catch(error => {
-                console.warn('Service Worker registration failed:', error);
-            });
-    });
+    // Skip registration on common local dev hosts to avoid caching interference
+    const hostname = window.location.hostname;
+    const skipLocal = (hostname === 'localhost' || hostname === '127.0.0.1');
+    if (!skipLocal) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => {
+                    console.log('Service Worker registered:', registration);
+                })
+                .catch(error => {
+                    console.warn('Service Worker registration failed:', error);
+                });
+        });
+    } else {
+        console.log('Skipping Service Worker registration on local dev host:', hostname);
+    }
 }
 
 // ========================================
@@ -647,36 +753,72 @@ document.addEventListener('DOMContentLoaded', () => {
 document.addEventListener('submit', async (e) => {
     if (e.target.classList.contains('ajax-form')) {
         e.preventDefault();
-        
+
         const form = e.target;
         const button = form.querySelector('button[type="submit"]');
-        const originalText = button.textContent;
-        
-        button.disabled = true;
-        button.textContent = 'Loading...';
-        
+        const originalText = button ? button.textContent : '';
+
+        if (button) {
+            button.disabled = true;
+            button.textContent = 'Loading...';
+        }
+
+        // Resolve a safe, absolute URL for the POST
+        const targetUrl = new URL(form.action || window.location.pathname, window.location.origin).href;
+
         try {
-            const response = await fetch(form.action, {
-                method: form.method,
+            const response = await fetch(targetUrl, {
+                method: form.method || 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
                 body: new FormData(form)
             });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                showToast(result.message || 'Success!', 'success');
-                if (result.redirect) {
-                    setTimeout(() => window.location.reload(), 1000);
+
+            const contentType = response.headers.get('content-type') || '';
+
+            // If response is JSON, parse it. Otherwise, fallback to navigation behavior.
+            if (contentType.includes('application/json')) {
+                let result;
+                try {
+                    result = await response.json();
+                } catch (err) {
+                    console.error('Failed to parse JSON response:', err);
+                    // Fallback: navigate to the form action or current page
+                    window.location.href = targetUrl;
+                    return;
+                }
+
+                if (result.success) {
+                    showToast(result.message || 'Success!', 'success');
+                    if (result.redirect) {
+                        // Always resolve redirect to absolute URL to avoid relative path issues
+                        const redirectUrl = new URL(result.redirect, window.location.origin).href;
+                        setTimeout(() => { window.location.href = redirectUrl; }, 500);
+                    }
+                } else {
+                    showToast(result.message || 'Error', 'error');
                 }
             } else {
-                showToast(result.message || 'Error', 'error');
+                // Non-JSON response (could be a redirect). If fetch followed a redirect, go there.
+                if (response.redirected && response.url) {
+                    window.location.href = response.url;
+                } else {
+                    // Fallback navigation to form action
+                    window.location.href = targetUrl;
+                }
             }
         } catch (error) {
-            console.error('Error:', error);
-            showToast('An error occurred', 'error');
+            console.error('Error during AJAX submit:', error);
+            // On network error, perform a normal navigation to attempt server-side handling
+            window.location.href = targetUrl;
         } finally {
-            button.disabled = false;
-            button.textContent = originalText;
+            if (button) {
+                button.disabled = false;
+                button.textContent = originalText;
+            }
         }
     }
 });

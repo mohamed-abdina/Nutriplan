@@ -1,0 +1,50 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - generic [ref=e5]: 🍽 NutriPlan
+    - heading "Join 1000s of Planners" [level=1] [ref=e6]
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - generic [ref=e9]: "1"
+        - generic [ref=e11]: "2"
+        - generic [ref=e13]: "3"
+      - paragraph [ref=e14]: Account Creation
+  - generic [ref=e16]:
+    - heading "Create Account" [level=2] [ref=e17]
+    - generic [ref=e18]:
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - textbox "First Name" [ref=e21]:
+            - /placeholder: " "
+          - generic: First Name
+        - generic [ref=e22]:
+          - textbox "Last Name" [ref=e23]:
+            - /placeholder: " "
+          - generic: Last Name
+      - generic [ref=e24]:
+        - textbox "Username" [ref=e25]:
+          - /placeholder: " "
+        - generic: Username
+      - generic [ref=e26]:
+        - textbox "Email address" [ref=e27]:
+          - /placeholder: " "
+        - generic: Email address
+      - generic [ref=e28]:
+        - textbox "Password" [ref=e29]:
+          - /placeholder: " "
+        - generic: Password
+      - generic [ref=e31]:
+        - textbox "Confirm Password" [ref=e32]:
+          - /placeholder: " "
+        - generic: Confirm Password
+      - generic [ref=e33] [cursor=pointer]:
+        - checkbox "I agree to Terms and Conditions" [ref=e34]
+        - generic [ref=e35]: I agree to Terms and Conditions
+      - button "Create Account" [ref=e36] [cursor=pointer]
+    - paragraph [ref=e37]:
+      - text: Already have an account?
+      - link "Sign in" [ref=e38] [cursor=pointer]:
+        - /url: login.php
+```

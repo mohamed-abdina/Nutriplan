@@ -3,7 +3,6 @@ const CACHE_NAME = 'nutriplan-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.php',
-  '/login.php',
   '/register.php',
   '/dashboard.php',
   '/search.php',
@@ -52,12 +51,32 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
-  
+
   // Skip cross-origin requests
   if (url.origin !== location.origin) {
     return;
   }
-  
+
+  // Navigation / HTML requests: use network-first to ensure fresh pages and allow POST/redirect flows
+  const acceptHeader = request.headers.get('accept') || '';
+  if (request.mode === 'navigate' || acceptHeader.includes('text/html')) {
+    event.respondWith(
+      fetch(request).then((networkResponse) => {
+        if (networkResponse && networkResponse.ok) {
+          // Optionally update cache for future navigations
+          const clone = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+          return networkResponse;
+        }
+        // Fallback to cache
+        return caches.match(request).then(cacheResp => cacheResp || new Response('Offline - page not available', { status: 503 }));
+      }).catch(() => {
+        return caches.match(request).then(cacheResp => cacheResp || new Response('Offline - page not available', { status: 503 }));
+      })
+    );
+    return;
+  }
+
   // API requests - network first
   if (url.pathname.includes('/api/')) {
     event.respondWith(
@@ -74,29 +93,29 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-  
+
   // Static assets - cache first
   event.respondWith(
     caches.match(request).then((cacheResponse) => {
       if (cacheResponse) {
         return cacheResponse;
       }
-      
+
       return fetch(request).then((networkResponse) => {
         if (!networkResponse || networkResponse.status !== 200 || networkResponse.type === 'error') {
           return networkResponse;
         }
-        
+
         // Clone the response
         const responseClone = networkResponse.clone();
-        
+
         // Cache successful responses
         if (request.method === 'GET') {
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(request, responseClone);
           });
         }
-        
+
         return networkResponse;
       }).catch(() => {
         // Return offline page or cached version

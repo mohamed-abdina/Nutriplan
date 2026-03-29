@@ -120,6 +120,19 @@ $db_password = 'your_password';
 $db_name = 'meal_planning_db';
 ```
 
+Alternatively you can set the host via environment (recommended for local vs Docker):
+
+```bash
+# For local host runs (PHP built-in server / XAMPP):
+export MYSQL_HOST=127.0.0.1
+php -S localhost:8000 -t .
+
+# For Docker Compose (leave as default 'db' or set MYSQL_HOST=db in .env)
+docker-compose up --build
+
+Note: When running the app on your host machine (PHP built-in server, XAMPP, or native PHP), the hostname `db` is not resolvable unless you're inside the Docker Compose network. If you see errors like "getaddrinfo for db failed", set the environment variable to `127.0.0.1` (or update `.env`) before starting the server. The project prefers an explicit `MYSQL_HOST` value when provided and falls back to `127.0.0.1` for local/CLI runs, otherwise using `db` for containerized setups.
+```
+
 ### Add New Meals
 Edit `seed.php`, add to `$meals` array:
 ```php

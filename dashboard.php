@@ -4,13 +4,12 @@ require_once 'includes/db_connect.php';
 require_once 'includes/auth_check.php';
 require_once 'includes/functions.php';
 
-$user_id = $_SESSION['user_id'];
-$username = $_SESSION['username'];
+$user_id = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
+$username = $_SESSION['username'] ?? '';
 
-// Get user info
-$user_result = $conn->query("SELECT first_name FROM users WHERE user_id = $user_id");
-$user = $user_result->fetch_assoc();
-$greeting = get_greeting() . ', ' . $user['first_name'] . ' 👋';
+// Get user info (use PDO helpers)
+$user = pdo_fetch_one("SELECT first_name FROM users WHERE user_id = ?", [$user_id]);
+$greeting = get_greeting() . ', ' . ($user['first_name'] ?? 'User') . ' 👋';
 
 // Get today's meals
 $today = date('Y-m-d');
@@ -24,20 +23,25 @@ $sql = "SELECT m.meal_id, m.meal_name, m.meal_icon, c.category_name, n.calories,
         JOIN nutrition n ON m.meal_id = n.meal_id
         LIMIT 6";
 
-$result = $conn->query($sql);
-while ($row = $result->fetch_assoc()) {
-    $meals[] = $row;
-    $total_calories += $row['calories'];
-    $total_protein += $row['proteins_g'];
+$fetched = pdo_fetch_all($sql);
+if ($fetched !== false && is_array($fetched)) {
+    $meals = $fetched;
+    foreach ($meals as $row) {
+        $total_calories += (int)$row['calories'];
+        $total_protein += (int)$row['proteins_g'];
+    }
 }
 
 // Get shopping list stats
-$cart_result = $conn->query("SELECT COUNT(DISTINCT si.item_id) as total, 
-        SUM(CASE WHEN si.purchased = 0 THEN 1 ELSE 0 END) as unpurchased
+$cart_stats = pdo_fetch_one(
+    "SELECT COUNT(DISTINCT si.item_id) as total, 
+            SUM(CASE WHEN si.purchased = 0 THEN 1 ELSE 0 END) as unpurchased
         FROM shopping_lists sl
         LEFT JOIN shopping_items si ON sl.list_id = si.list_id
-        WHERE sl.user_id = $user_id");
-$cart_stats = $cart_result->fetch_assoc() ?? ['total' => 0, 'unpurchased' => 0];
+        WHERE sl.user_id = ?",
+    [$user_id]
+);
+$cart_stats = $cart_stats ?? ['total' => 0, 'unpurchased' => 0];
 
 // Nutrition score
 $nutrition_score = $total_protein > 30 && $total_calories > 500 ? 85 : 60;
@@ -59,60 +63,44 @@ $nutrition_score = $total_protein > 30 && $total_calories > 500 ? 85 : 60;
             <!-- Topbar -->
             <div class="topbar">
                 <div>
-                    <h3 style="margin-bottom: var(--sp-2);"><?php echo $greeting; ?></h3>
+                    <h3 class="mb-2"><?php echo $greeting; ?></h3>
                 </div>
-                <div style="display: flex; gap: var(--sp-4); align-items: center;">
-                    <a href="profile.php" style="text-decoration: none; color: var(--text-1);">👤</a>
+                <div class="flex gap-4 flex-center">
+                    <a href="profile.php" class="no-underline text-1">👤</a>
                 </div>
             </div>
             
             <!-- Stat Cards -->
             <div class="grid-4">
-                <div class="stat-card" style="--stat-color: var(--primary);">
-                    <div class="stat-label">Today's Meals</div>
-                    <div class="stat-value" data-count="<?php echo count($meals); ?>">0</div>
-                </div>
-                <div class="stat-card" style="--stat-color: var(--success);">
-                    <div class="stat-label">Nutrition Score</div>
-                    <div class="stat-value" data-count="<?php echo $nutrition_score; ?>">0</div>%
-                </div>
-                <div class="stat-card" style="--stat-color: var(--warning);">
-                    <div class="stat-label">Shopping Items</div>
-                    <div class="stat-value" data-count="<?php echo $cart_stats['unpurchased']; ?>">0</div>
-                </div>
-                <div class="stat-card" style="--stat-color: var(--accent);">
-                    <div class="stat-label">Calories</div>
-                    <div class="stat-value" data-count="<?php echo (int)($total_calories / 100) * 100; ?>">0</div>
-                </div>
+                <?php 
+                $stats = [
+                    ['label' => "Today's Meals", 'value' => count($meals), 'color' => 'var(--primary)'],
+                    ['label' => 'Nutrition Score', 'value' => $nutrition_score, 'color' => 'var(--success)'],
+                    ['label' => 'Shopping Items', 'value' => $cart_stats['unpurchased'], 'color' => 'var(--warning)'],
+                    ['label' => 'Calories', 'value' => (int)($total_calories / 100) * 100, 'color' => 'var(--accent)'],
+                ];
+                foreach ($stats as $stat) {
+                    $label = $stat['label'];
+                    $value = $stat['value'];
+                    $color = $stat['color'];
+                    include 'components/stat_card.php';
+                }
+                ?>
             </div>
             
             <!-- Meals Grid -->
-            <div style="margin-top: var(--sp-12);">
-                <h2 style="margin-bottom: var(--sp-6);">Recommended Meals</h2>
+            <div class="mt-12">
+                <h2 class="mb-6">Recommended Meals</h2>
                 <div class="grid-2 stagger-container">
                     <?php foreach ($meals as $meal): ?>
-                    <article class="meal-card stagger-item" style="--card-accent: var(--primary);">
-                        <div class="card-accent-strip"></div>
-                        <div class="card-body">
-                            <div class="card-icon"><?php echo $meal['meal_icon']; ?></div>
-                            <div style="flex: 1;">
-                                <div class="card-title"><?php echo $meal['meal_name']; ?></div>
-                                <span class="card-category"><?php echo $meal['category_name']; ?></span>
-                                <p class="card-nutrients">Cal: <?php echo $meal['calories']; ?> · Protein: <?php echo $meal['proteins_g']; ?>g</p>
-                            </div>
-                        </div>
-                        <div class="card-actions">
-                            <button class="btn-ghost btn-sm" onclick="addToShoppingList(<?php echo $meal['meal_id']; ?>)">+ Add</button>
-                            <a href="meal.php?id=<?php echo $meal['meal_id']; ?>" class="btn-outline btn-sm">Details →</a>
-                        </div>
-                    </article>
+                        <?php include 'components/meal_card.php'; ?>
                     <?php endforeach; ?>
                 </div>
             </div>
             
             <!-- Call to Action -->
-            <div style="margin-top: var(--sp-12); background: var(--overlay); border: 1px solid var(--border); border-radius: 14px; padding: var(--sp-8); text-align: center;">
-                <h3 style="margin-bottom: var(--sp-4);">Want to plan more meals?</h3>
+            <div class="mt-12 bg-overlay border radius-14 p-8 text-center">
+                <h3 class="mb-4">Want to plan more meals?</h3>
                 <a href="search.php" class="btn btn-primary">Search Meals →</a>
             </div>
         </main>

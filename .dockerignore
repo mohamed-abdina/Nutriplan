@@ -1,0 +1,6 @@
+vendor/
+node_modules/
+uploads/
+.env
+.git
+.gitignore

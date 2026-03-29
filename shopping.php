@@ -1,18 +1,19 @@
 <?php
-session_start();
+require_once __DIR__ . '/includes/session.php';
+secure_session_start();
 require_once 'includes/db_connect.php';
 require_once 'includes/auth_check.php';
 
-$user_id = $_SESSION['user_id'];
+$user_id = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
 
 // Get or create default shopping list
-$list_result = $conn->query("SELECT list_id FROM shopping_lists WHERE user_id = $user_id ORDER BY created_at DESC LIMIT 1");
-if ($list_result && $list_result->num_rows > 0) {
-    $list = $list_result->fetch_assoc();
+$list = pdo_fetch_one("SELECT list_id FROM shopping_lists WHERE user_id = ? ORDER BY created_at DESC LIMIT 1", [$user_id]);
+if ($list) {
     $list_id = $list['list_id'];
 } else {
-    $conn->query("INSERT INTO shopping_lists (user_id, list_name) VALUES ($user_id, 'My Shopping List')");
-    $list_id = $conn->insert_id;
+    pdo_query("INSERT INTO shopping_lists (user_id, list_name) VALUES (?, ?)", [$user_id, 'My Shopping List']);
+    // For lastInsertId, use PDO directly
+    $list_id = get_db()->lastInsertId();
 }
 
 // Get items grouped by category
@@ -24,19 +25,19 @@ $sql = "SELECT si.item_id, si.item_name, si.quantity, si.purchased, si.custom_it
         WHERE si.list_id = $list_id
         ORDER BY si.purchased ASC, COALESCE(c.category_id, 999), si.item_name";
 
-$result = $conn->query($sql);
+$fetched = pdo_fetch_all($sql) ?? [];
 $items_by_category = [];
 $total_items = 0;
 $purchased = 0;
 
-while ($row = $result->fetch_assoc()) {
+foreach ($fetched as $row) {
     $cat = $row['category_name'] ?? 'Other';
     if (!isset($items_by_category[$cat])) {
         $items_by_category[$cat] = [];
     }
     $items_by_category[$cat][] = $row;
     $total_items++;
-    if ($row['purchased']) $purchased++;
+    if ((int)$row['purchased'] === 1) $purchased++;
 }
 
 $progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
@@ -64,9 +65,9 @@ $progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
             </div>
             
             <!-- Progress Bar -->
-            <div style="margin-bottom: var(--sp-8);">
-                <div style="height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;">
-                    <div class="progress-bar" style="height: 100%; background: var(--grad-success); width: <?php echo $progress; ?>%; transition: width 300ms var(--ease-smooth);"></div>
+            <div class="progress-container">
+                <div class="progress-bar-track">
+                    <div class="progress-bar" style="width: <?php echo $progress; ?>%;"></div>
                 </div>
             </div>
             
@@ -77,11 +78,11 @@ $progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
                     <h3 style="margin-bottom: var(--sp-4); color: var(--text-2);"><?php echo $category; ?></h3>
                     <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden;">
                         <?php foreach ($items as $item): ?>
-                        <div class="list-item <?php echo $item['purchased'] ? 'checked' : ''; ?>" data-item-id="<?php echo $item['item_id']; ?>" style="display: flex; align-items: center; padding: var(--sp-4); border-bottom: 1px solid var(--border); transition: opacity var(--dur-normal); <?php echo $item['purchased'] ? 'opacity: 0.5;' : ''; ?>">
-                            <input type="checkbox" class="list-checkbox" <?php echo $item['purchased'] ? 'checked' : ''; ?> onchange="toggleShoppingItem(<?php echo $item['item_id']; ?>)" style="width: 20px; height: 20px; margin-right: var(--sp-4); cursor: pointer;">
-                            <div style="flex: 1;">
-                                <div style="color: var(--text-1); font-weight: 500; <?php echo $item['purchased'] ? 'text-decoration: line-through;' : ''; ?>"><?php echo $item['item_name']; ?></div>
-                                <div style="color: var(--text-2); font-size: var(--text-sm); margin-top: var(--sp-1);"><?php echo $item['quantity']; ?></div>
+                        <div class="list-item-layout <?php echo $item['purchased'] ? 'list-item-checked' : ''; ?>" data-item-id="<?php echo $item['item_id']; ?>" <?php echo $item['purchased'] ? 'style="opacity: 0.5;"' : ''; ?>>
+                            <input type="checkbox" class="list-item-checkbox" <?php echo $item['purchased'] ? 'checked' : ''; ?> onchange="toggleShoppingItem(<?php echo $item['item_id']; ?>)">
+                            <div class="list-item-content">
+                                <div class="list-item-name" <?php echo $item['purchased'] ? 'style="text-decoration: line-through;"' : ''; ?>><?php echo $item['item_name']; ?></div>
+                                <div class="list-item-quantity"><?php echo $item['quantity']; ?></div>
                             </div>
                             <button class="btn-ghost" onclick="deleteShoppingItem(<?php echo $item['item_id']; ?>)" style="border: none; background: none; color: var(--danger); cursor: pointer; padding: var(--sp-2);">🗑</button>
                         </div>
@@ -94,9 +95,9 @@ $progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
             <!-- Add Custom Item -->
             <div style="background: var(--overlay); border: 1px solid var(--border); border-radius: 12px; padding: var(--sp-6);">
                 <p style="font-size: var(--text-sm); color: var(--text-2); margin-bottom: var(--sp-4);">Not finding something? Add a custom item.</p>
-                <form style="display: grid; grid-template-columns: 1fr 1fr auto; gap: var(--sp-4);">
-                    <input type="text" id="custom-item-name" placeholder="Item name" style="padding: var(--sp-3); background: var(--inset); border: 1px solid var(--border); border-radius: 8px; color: var(--text-1);">
-                    <input type="text" id="custom-item-qty" placeholder="Quantity" style="padding: var(--sp-3); background: var(--inset); border: 1px solid var(--border); border-radius: 8px; color: var(--text-1);">
+                <form style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-4);" class="custom-item-form">
+                    <input type="text" id="custom-item-name" placeholder="Item name" class="form-input">
+                    <input type="text" id="custom-item-qty" placeholder="Quantity" class="form-input">
                     <button type="button" class="btn btn-primary btn-sm" onclick="addCustomItem()">Add</button>
                 </form>
             </div>

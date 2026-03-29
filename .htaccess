@@ -39,8 +39,8 @@
     ExpiresByType application/json "access plus 1 month"
 </IfModule>
 
-# Protect sensitive files
-<FilesMatch "\.(env|htaccess|php|sql)$">
-    Order Allow,Deny
-    Deny from all
+# Protect sensitive files (keep .php accessible for app entrypoints)
+# Block environment and htaccess files but allow serving .php files
+<FilesMatch "\.(env|htaccess|sql)$">
+    Require all denied
 </FilesMatch>

@@ -413,7 +413,201 @@ Use Postman or similar tools to test:
 
 ---
 
-## 🔄 Response Status Codes
+## ⭐ Meal Ratings & Favorites API
+
+**Endpoint:** `POST /api/meal_ratings.php`
+
+**Description:** Rate meals, write reviews, and manage favorites.
+
+**Authentication:** Required (session must be active)
+
+### Actions
+
+#### Submit Rating
+```javascript
+const formData = new URLSearchParams();
+formData.append('action', 'rate');
+formData.append('meal_id', 5);
+formData.append('rating', 4);  // 1-5 stars
+formData.append('review', 'Delicious and nutritious!');
+
+fetch('/api/meal_ratings.php', {
+  method: 'POST',
+  body: formData
+})
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Rating saved"
+}
+```
+
+#### Toggle Favorite
+```javascript
+const formData = new URLSearchParams();
+formData.append('action', 'toggle_favorite');
+formData.append('meal_id', 5);
+
+fetch('/api/meal_ratings.php', {
+  method: 'POST',
+  body: formData
+})
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "is_favorite": true
+}
+```
+
+#### Get User Rating
+```javascript
+const formData = new URLSearchParams();
+formData.append('action', 'get_rating');
+formData.append('meal_id', 5);
+
+fetch('/api/meal_ratings.php', {
+  method: 'POST',
+  body: formData
+})
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "rating": 4,
+  "review": "Great meal!",
+  "is_favorite": true
+}
+```
+
+#### Get All Favorites
+```javascript
+const formData = new URLSearchParams();
+formData.append('action', 'get_favorites');
+
+fetch('/api/meal_ratings.php', {
+  method: 'POST',
+  body: formData
+})
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "favorites": [
+    {
+      "meal_id": 5,
+      "meal_name": "Ugali & Nyama",
+      "meal_icon": "🍖",
+      "category_name": "Lunch",
+      "calories": 520
+    }
+  ]
+}
+```
+
+---
+
+## ⚙️ User Preferences API
+
+**Endpoint:** `POST /api/user_preferences.php`
+
+**Description:** Manage user preferences like portion sizes, dietary restrictions, and allergies.
+
+**Authentication:** Required (session must be active)
+
+### Actions
+
+#### Get Preferences
+```javascript
+const formData = new URLSearchParams();
+formData.append('action', 'get');
+
+fetch('/api/user_preferences.php', {
+  method: 'POST',
+  body: formData
+})
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "preferences": {
+    "preference_id": 1,
+    "user_id": 5,
+    "portion_size": "normal",
+    "dietary_restrictions": "Vegetarian",
+    "allergies": "Nuts, Dairy",
+    "preferred_cuisine": "African",
+    "notifications_enabled": true,
+    "theme_preference": "dark",
+    "created_at": "2026-03-19 10:30:00",
+    "updated_at": "2026-03-19 14:20:00"
+  }
+}
+```
+
+#### Update Preferences
+```javascript
+const formData = new URLSearchParams();
+formData.append('action', 'update');
+formData.append('portion_size', 'large');  // small, normal, large, extra-large
+formData.append('dietary_restrictions', 'Vegetarian');
+formData.append('allergies', 'Peanuts');
+formData.append('preferred_cuisine', 'Asian');
+formData.append('notifications_enabled', '1');
+formData.append('theme_preference', 'dark');  // light or dark
+
+fetch('/api/user_preferences.php', {
+  method: 'POST',
+  body: formData
+})
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Preferences updated"
+}
+```
+
+---
+
+## 🔐 Rate Limiting
+
+All API endpoints now include rate limiting to prevent abuse:
+
+| Endpoint | Limit | Window |
+|----------|-------|--------|
+| `search_api.php` | 20 requests | 60 seconds |
+| `shopping_action.php` | 10 requests | 60 seconds |
+| `meal_ratings.php` | 15 requests | 60 seconds |
+| `user_preferences.php` | 10 requests | 60 seconds |
+| `check_username.php` | 5 requests | 60 seconds |
+| `upload_avatar.php` | 3 uploads | 60 seconds |
+
+**Rate Limit Exceeded Response (429):**
+```json
+{
+  "success": false,
+  "message": "Too many requests. Please try again later.",
+  "remaining": 0
+}
+```
+
+---
+
+## 📊 Testing APIs
 
 | Code | Meaning |
 |------|---------|
@@ -423,6 +617,7 @@ Use Postman or similar tools to test:
 | 401 | Unauthorized (login required) |
 | 404 | Resource not found |
 | 405 | Method not allowed |
+| 429 | Too many requests (rate limit exceeded) |
 | 500 | Server error |
 
 ---
