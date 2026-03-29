@@ -38,13 +38,15 @@ $avg_rating = $avg_rating_row && $avg_rating_row['avg_rating'] ? round($avg_rati
 $total_ratings = $avg_rating_row ? (int)$avg_rating_row['total_ratings'] : 0;
 ?>
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $meal['meal_name']; ?> - NutriPlan</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="manifest" href="manifest.json">
+    <?php require_once __DIR__ . '/includes/csrf.php'; ?>
+    <script>window.CSRF_TOKEN = '<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8'); ?>';</script>
 </head>
 <body>
     <div class="app-shell">
@@ -117,11 +119,11 @@ $total_ratings = $avg_rating_row ? (int)$avg_rating_row['total_ratings'] : 0;
             <!-- Tabs -->
             <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: var(--sp-6);">
                 <div class="tab-button-group">
-                    <button class="tab-button active" data-tab="ingredients">📋 Ingredients</button>
-                    <button class="tab-button" data-tab="nutrition">💪 Nutrition</button>
-                    <button class="tab-button" data-tab="preparation">👨‍🍳 Preparation</button>
-                    <button class="tab-button" data-tab="ratings">⭐ Your Rating</button>
-                    <button class="tab-button" data-tab="sources">🔗 Recipe Sources</button>
+                    <button class="tab-btn active" data-tab="ingredients">📋 Ingredients</button>
+                    <button class="tab-btn" data-tab="nutrition">💪 Nutrition</button>
+                    <button class="tab-btn" data-tab="preparation">👨‍🍳 Preparation</button>
+                    <button class="tab-btn" data-tab="ratings">⭐ Your Rating</button>
+                    <button class="tab-btn" data-tab="sources">🔗 Recipe Sources</button>
                 </div>
                 
                 <!-- Ingredients Tab -->
@@ -269,7 +271,7 @@ $total_ratings = $avg_rating_row ? (int)$avg_rating_row['total_ratings'] : 0;
             fetch('api/meal_ratings.php', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `action=rate&meal_id=${mealId}&rating=${currentRating}&review=${encodeURIComponent(review)}`
+                body: `action=rate&meal_id=${mealId}&rating=${currentRating}&review=${encodeURIComponent(review)}&csrf_token=${encodeURIComponent(window.CSRF_TOKEN || '')}`
             })
             .then(r => r.json())
             .then(data => {
@@ -287,7 +289,7 @@ $total_ratings = $avg_rating_row ? (int)$avg_rating_row['total_ratings'] : 0;
             fetch('api/meal_ratings.php', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `action=toggle_favorite&meal_id=${mealId}`
+                body: `action=toggle_favorite&meal_id=${mealId}&csrf_token=${encodeURIComponent(window.CSRF_TOKEN || '')}`
             })
             .then(r => r.json())
             .then(data => {
@@ -321,21 +323,5 @@ $total_ratings = $avg_rating_row ? (int)$avg_rating_row['total_ratings'] : 0;
             }
         }
         
-        // Tab switching
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const tabName = this.getAttribute('data-tab');
-                
-                // Hide all tabs
-                document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
-                document.querySelectorAll('.tab-btn').forEach(b => {
-                    b.style.color = 'var(--text-2)';
-                });
-                
-                // Show selected tab
-                document.getElementById(tabName).classList.remove('hidden');
-                this.style.color = 'var(--text-1)';
-                this.classList.add('active');
-            });
-        });
+        // ...existing code...
     </script>

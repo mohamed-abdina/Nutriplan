@@ -1,7 +1,9 @@
 <?php
 require_once __DIR__ . '/includes/session.php';
 secure_session_start();
+
 require_once 'includes/db_connect.php';
+require_once __DIR__ . '/includes/csrf.php';
 
 if (isset($_SESSION['user_id'])) {
     header('Location: dashboard.php');
@@ -18,39 +20,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = sanitize_input($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     $confirm = $_POST['confirm'] ?? '';
-    
-    // Validation
-    if (empty($first_name) || empty($last_name) || empty($username) || empty($email) || empty($password)) {
+    $csrf_token = $_POST['csrf_token'] ?? '';
+
+    // CSRF check
+    if (!validate_csrf($csrf_token)) {
+        $error = 'Invalid CSRF token. Please refresh and try again.';
+    } elseif (empty($first_name) || empty($last_name) || empty($username) || empty($email) || empty($password)) {
         $error = 'All fields required';
     } elseif (strlen($password) < 8) {
         $error = 'Password must be at least 8 characters';
     } elseif ($password !== $confirm) {
         $error = 'Passwords do not match';
     } else {
-        // Check if username/email already exists
-        $check = $conn->query("SELECT user_id FROM users WHERE username = '$username' OR email = '$email'");
-        if ($check->num_rows > 0) {
+        // Check if username/email already exists (PDO)
+        $stmt = $pdo->prepare('SELECT user_id FROM users WHERE username = :username OR email = :email');
+        $stmt->execute([':username' => $username, ':email' => $email]);
+        if ($stmt->fetch()) {
             $error = 'Username or email already taken';
         } else {
-            // Create user
+            // Create user (PDO)
             $hash = password_hash($password, PASSWORD_BCRYPT);
-            $query = "INSERT INTO users (username, email, password_hash, first_name, last_name) 
-                     VALUES ('$username', '$email', '$hash', '$first_name', '$last_name')";
-            
-            if ($conn->query($query)) {
-                $_SESSION['user_id'] = $conn->insert_id;
+            $stmt = $pdo->prepare('INSERT INTO users (username, email, password_hash, first_name, last_name) VALUES (:username, :email, :hash, :first_name, :last_name)');
+            $ok = $stmt->execute([
+                ':username' => $username,
+                ':email' => $email,
+                ':hash' => $hash,
+                ':first_name' => $first_name,
+                ':last_name' => $last_name
+            ]);
+            if ($ok) {
+                $_SESSION['user_id'] = $pdo->lastInsertId();
                 $_SESSION['username'] = $username;
                 header('Location: dashboard.php');
                 exit;
             } else {
-                $error = 'Registration error: ' . $conn->error;
+                $error = 'Registration error: Please try again.';
             }
         }
     }
 }
 ?>
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -92,6 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php endif; ?>
                 
                 <form method="POST">
+                    <?php echo csrf_field(); ?>
                     <div class="form-grid-2">
                         <div class="field">
                             <input type="text" id="first_name" name="first_name" placeholder=" " required>

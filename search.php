@@ -9,7 +9,7 @@ require_once 'includes/functions.php';
 $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FROM categories ORDER BY category_id") ?? [];
 ?>
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -66,20 +66,37 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
             const query = document.getElementById('searchInput').value;
             const activeChip = document.querySelector('.chip.active');
             const category = activeChip && activeChip.dataset.filter !== 'all' ? activeChip.dataset.filter : '';
-            
-            if (!query && !category) {
-                document.getElementById('results-container').innerHTML = '';
-                return;
-            }
-            
+            // Always fetch, even if both are empty, to show all meals by default
+
+            const container = document.getElementById('results-container');
+            const noResults = document.getElementById('no-results');
+
+            // Show skeleton loaders
+            const skeletonCount = 4;
+            container.innerHTML = Array.from({length: skeletonCount}).map(() => `
+                <article class="meal-card skeleton" style="height: 120px; margin-bottom: var(--sp-4);">
+                    <div class="card-accent-strip"></div>
+                    <div class="card-body flex">
+                        <div class="card-icon skeleton" style="width: 48px; height: 48px;"></div>
+                        <div style="flex: 1; margin-left: var(--sp-4);">
+                            <div class="card-title skeleton" style="width: 60%; height: 18px; margin-bottom: 8px;"></div>
+                            <div class="card-category skeleton" style="width: 40%; height: 14px; margin-bottom: 8px;"></div>
+                            <div class="card-nutrients skeleton" style="width: 80%; height: 12px;"></div>
+                        </div>
+                    </div>
+                    <div class="card-actions flex">
+                        <div class="btn-ghost btn-sm skeleton" style="width: 60px; height: 28px;"></div>
+                        <div class="btn-outline btn-sm skeleton" style="width: 80px; height: 28px;"></div>
+                    </div>
+                </article>
+            `).join('');
+            noResults.classList.add('hidden');
+
             try {
                 const url = `/api/search_api.php?q=${encodeURIComponent(query)}&cat=${category}`;
                 const response = await fetch(url);
                 const data = await response.json();
-                
-                const container = document.getElementById('results-container');
-                const noResults = document.getElementById('no-results');
-                
+
                 if (data.meals && data.meals.length > 0) {
                     container.innerHTML = data.meals.map((meal, index) => `
                         <article class="meal-card stagger-item" style="--card-accent: var(--primary); animation-delay: ${index * 60}ms">
@@ -106,6 +123,8 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
             } catch (error) {
                 console.error('Search error:', error);
                 showToast('Search failed', 'error');
+                container.innerHTML = '';
+                noResults.classList.remove('hidden');
             }
         }
         

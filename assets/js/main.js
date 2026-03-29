@@ -324,12 +324,14 @@ document.addEventListener('click', (e) => {
 
 async function addToShoppingList(mealId) {
     try {
+        showLoader(true);
+        const csrf = window.CSRF_TOKEN || '';
         const response = await fetch('/api/shopping_action.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
             },
-            body: `action=add&meal_id=${mealId}`
+            body: `action=add&meal_id=${mealId}&csrf_token=${encodeURIComponent(csrf)}`
         });
         
         const contentType = response.headers.get('content-type') || '';
@@ -356,17 +358,21 @@ async function addToShoppingList(mealId) {
     } catch (error) {
         console.error('Error:', error);
         showToast('Error adding to list', 'error');
+    } finally {
+        showLoader(false);
     }
 }
 
 async function toggleShoppingItem(itemId) {
     try {
+        showLoader(true);
+        const csrf = window.CSRF_TOKEN || '';
         const response = await fetch('/api/shopping_action.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
             },
-            body: `action=toggle&item_id=${itemId}`
+            body: `action=toggle&item_id=${itemId}&csrf_token=${encodeURIComponent(csrf)}`
         });
         
         const contentType = response.headers.get('content-type') || '';
@@ -396,18 +402,22 @@ async function toggleShoppingItem(itemId) {
         }
     } catch (error) {
         console.error('Error:', error);
+    } finally {
+        showLoader(false);
     }
 }
 
 async function deleteShoppingItem(itemId) {
     if (confirm('Delete this item?')) {
         try {
+            showLoader(true);
+            const csrf = window.CSRF_TOKEN || '';
             const response = await fetch('/api/shopping_action.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
                 },
-                body: `action=delete&item_id=${itemId}`
+                body: `action=delete&item_id=${itemId}&csrf_token=${encodeURIComponent(csrf)}`
             });
             
             const contentType = response.headers.get('content-type') || '';
@@ -433,6 +443,8 @@ async function deleteShoppingItem(itemId) {
             }
         } catch (error) {
             console.error('Error:', error);
+        } finally {
+            showLoader(false);
         }
     }
 }
@@ -794,8 +806,16 @@ document.addEventListener('submit', async (e) => {
                 if (result.success) {
                     showToast(result.message || 'Success!', 'success');
                     if (result.redirect) {
-                        // Always resolve redirect to absolute URL to avoid relative path issues
-                        const redirectUrl = new URL(result.redirect, window.location.origin).href;
+                        // Always resolve redirect relative to current path if not absolute
+                        let redirectUrl = result.redirect;
+                        if (!/^https?:\/\//.test(redirectUrl) && !redirectUrl.startsWith('/')) {
+                            // Relative path, resolve against current path
+                            const base = window.location.pathname.endsWith('/') ? window.location.pathname : window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+                            redirectUrl = base + redirectUrl;
+                        } else if (redirectUrl.startsWith('/')) {
+                            // Root-relative, add origin
+                            redirectUrl = window.location.origin + redirectUrl;
+                        }
                         setTimeout(() => { window.location.href = redirectUrl; }, 500);
                     }
                 } else {

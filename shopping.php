@@ -43,13 +43,15 @@ foreach ($fetched as $row) {
 $progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
 ?>
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shopping List - NutriPlan</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="manifest" href="manifest.json">
+    <?php require_once __DIR__ . '/includes/csrf.php'; ?>
+    <script>window.CSRF_TOKEN = '<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8'); ?>';</script>
 </head>
 <body>
     <div class="app-shell">
@@ -114,11 +116,11 @@ $progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
                 showToast('Please enter item name', 'warning');
                 return;
             }
-            
+            showLoader(true);
             fetch('/api/shopping_action.php', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `action=add_custom&name=${encodeURIComponent(name)}&qty=${encodeURIComponent(qty)}`
+                body: `action=add_custom&name=${encodeURIComponent(name)}&qty=${encodeURIComponent(qty)}&csrf_token=${encodeURIComponent(window.CSRF_TOKEN || '')}`
             })
             .then(r => r.json())
             .then(data => {
@@ -130,7 +132,8 @@ $progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
                 } else {
                     showToast(data.message, 'error');
                 }
-            });
+            })
+            .finally(() => { showLoader(false); });
         }
     </script>
 </body>

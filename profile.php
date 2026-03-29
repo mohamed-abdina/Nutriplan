@@ -35,7 +35,7 @@ $meals_info = pdo_fetch_one("SELECT COUNT(DISTINCT DATE(created_at)) as days, CO
 $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE user_id = ?", [$user_id]) ?? ['lists' => 0];
 ?>
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
