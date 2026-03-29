@@ -52,56 +52,33 @@ function updateThemeIcon(theme) {
 function initMobileMenu() {
     const hamburger = document.querySelector('.hamburger');
     const sidebar = document.querySelector('.sidebar');
-    const navItems = document.querySelectorAll('.nav-item a');
+    const overlay = document.querySelector('.sidebar-overlay');
     
-    if (hamburger) {
-        // Toggle behaviour depends on viewport:
-        // - <=767px : off-canvas open/close
-        // - 768-1023px : collapse/expand sidebar (sticky)
+    if (hamburger && sidebar) {
+        // Simple toggle: add/remove 'open' class on mobile
         hamburger.addEventListener('click', () => {
-            const w = window.innerWidth;
-            if (w <= 767) {
-                sidebar.classList.toggle('open');
-            } else if (w >= 768 && w <= 1023) {
-                sidebar.classList.toggle('collapsed');
-                // Add helper class to main for margin adjustments
-                const main = document.querySelector('.main');
-                if (main) main.classList.toggle('sidebar-collapsed');
-                // Ensure off-canvas state is cleared
-                sidebar.classList.remove('open');
-            }
+            sidebar.classList.toggle('open');
+            if (overlay) overlay.classList.toggle('visible');
         });
 
-        navItems.forEach(item => {
-            item.addEventListener('click', () => {
-                if (window.innerWidth <= 767) {
-                    sidebar.classList.remove('open');
-                }
-            });
-        });
-
-        // Close off-canvas sidebar when clicking outside (only for mobile)
+        // Close sidebar when clicking outside on mobile
         document.addEventListener('click', (e) => {
-            if (window.innerWidth <= 767) {
+            if (window.innerWidth <= 1023) {
                 if (!sidebar.contains(e.target) && !hamburger.contains(e.target)) {
                     sidebar.classList.remove('open');
+                    if (overlay) overlay.classList.remove('visible');
                 }
             }
         });
 
-        // Normalize states on resize across breakpoints
-        window.addEventListener('resize', () => {
-            const w = window.innerWidth;
-            const main = document.querySelector('.main');
-            if (w > 1023) {
-                sidebar.classList.remove('collapsed', 'open');
-                if (main) main.classList.remove('sidebar-collapsed');
-            }
-            if (w <= 767) {
-                // ensure collapsed (tablet) state doesn't persist on small phones
-                sidebar.classList.remove('collapsed');
-                if (main) main.classList.remove('sidebar-collapsed');
-            }
+        // Close sidebar when a nav item is clicked
+        document.querySelectorAll('.nav-item a').forEach(item => {
+            item.addEventListener('click', () => {
+                if (window.innerWidth <= 1023) {
+                    sidebar.classList.remove('open');
+                    if (overlay) overlay.classList.remove('visible');
+                }
+            });
         });
     }
 }

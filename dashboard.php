@@ -60,8 +60,9 @@ $nutrition_score = $total_protein > 30 && $total_calories > 500 ? 85 : 60;
         <?php include 'components/sidebar.php'; ?>
         
         <main class="main page-enter">
-            <!-- Topbar -->
-            <div class="topbar">
+            <div class="container">
+                <!-- Topbar -->
+                <div class="topbar">
                 <div>
                     <h3 class="mb-2"><?php echo $greeting; ?></h3>
                 </div>
@@ -70,8 +71,8 @@ $nutrition_score = $total_protein > 30 && $total_calories > 500 ? 85 : 60;
                 </div>
             </div>
             
-            <!-- Stat Cards -->
-            <div class="grid-4">
+                <!-- Stat Cards -->
+                <div class="grid-auto-md">
                 <?php 
                 $stats = [
                     ['label' => "Today's Meals", 'value' => count($meals), 'color' => 'var(--primary)'],
@@ -86,22 +87,23 @@ $nutrition_score = $total_protein > 30 && $total_calories > 500 ? 85 : 60;
                     include 'components/stat_card.php';
                 }
                 ?>
-            </div>
-            
-            <!-- Meals Grid -->
-            <div class="mt-12">
-                <h2 class="mb-6">Recommended Meals</h2>
-                <div class="grid-2 stagger-container">
+                </div>
+                
+                <!-- Meals Grid -->
+                <div class="mt-12">
+                    <h2 class="mb-6">Recommended Meals</h2>
+                    <div class="grid-2 stagger-container">
                     <?php foreach ($meals as $meal): ?>
                         <?php include 'components/meal_card.php'; ?>
                     <?php endforeach; ?>
+                    </div>
                 </div>
-            </div>
-            
-            <!-- Call to Action -->
-            <div class="mt-12 bg-overlay border radius-14 p-8 text-center">
-                <h3 class="mb-4">Want to plan more meals?</h3>
-                <a href="search.php" class="btn btn-primary">Search Meals →</a>
+                
+                <!-- Call to Action -->
+                <div class="mt-12 bg-overlay border radius-14 p-8 text-center">
+                    <h3 class="mb-4">Want to plan more meals?</h3>
+                    <a href="search.php" class="btn btn-primary">Search Meals →</a>
+                </div>
             </div>
         </main>
     </div>

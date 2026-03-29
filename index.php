@@ -30,7 +30,7 @@ if (isset($_SESSION['user_id'])) {
     </nav>
     
     <!-- Hero Section -->
-    <section style="min-height: 100dvh; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: var(--sp-8) var(--sp-4); margin-top: 64px; text-align: center;">
+    <section style="min-height: 100dvh; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: var(--sp-8) var(--sp-4); text-align: center;">
         <div style="max-width: 600px;">
             <h1 class="hero-headline text-gradient" style="margin-bottom: var(--sp-6);">Smart Meal Planning, Zero Waste</h1>
             <p style="font-size: var(--text-lg); color: var(--text-2); margin-bottom: var(--sp-8);">Plan your meals for the week, reduce food waste, and eat healthier. It's simpler than you think.</p>

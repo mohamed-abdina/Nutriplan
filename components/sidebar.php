@@ -9,6 +9,9 @@ $nav_items = [
 ];
 ?>
 
+<!-- Sidebar overlay backdrop (mobile) -->
+<div class="sidebar-overlay" role="presentation"></div>
+
 <!-- Hamburger for mobile/tablet -->
 <button class="hamburger" aria-label="Open navigation" aria-controls="sidebarNav" aria-expanded="false" tabindex="0" role="button">
     <span class="hamburger-bar"></span>
