@@ -83,3 +83,12 @@ Analyse_Codebase_skill.md
 analysis_*.md
 
 test-results/core.*
+ 
+# Test results (ignore all test output)
+test-results/
+
+# Consider ignoring this if always generated or local-only:
+# bin/dev
+
+# Consider ignoring this if only used for local DB seeding:
+# seed.php
