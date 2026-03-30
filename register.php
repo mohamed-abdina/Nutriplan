@@ -69,8 +69,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="manifest" href="manifest.json">
 </head>
-<body>
-    <div class="split-layout">
+<body>    <!-- Skip to content link for accessibility -->
+    <a href="#main-content" class="sr-only-skip">Skip to registration form</a>
+        <div class="split-layout">
         <!-- Left Panel -->
         <div class="split-layout-left">
             <div style="margin-bottom: var(--sp-12);">
@@ -92,56 +93,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
         
         <!-- Right Panel (Form) -->
-        <div class="split-layout-right">
+        <div class="split-layout-right" id="main-content">
             <div style="max-width: 400px; margin: 0 auto; width: 100%; padding: var(--sp-6) 0;">
                 <h2 style="margin-bottom: var(--sp-8);">Create Account</h2>
                 
                 <?php if (!empty($error)): ?>
-                <div style="background: rgba(248, 113, 113, 0.15); border: 1px solid var(--danger); border-radius: 8px; padding: var(--sp-4); margin-bottom: var(--sp-6); color: var(--danger); font-size: var(--text-sm);">
-                    <?php echo $error; ?>
+                <div class="alert-error" role="alert" aria-live="polite">
+                    <?php echo htmlspecialchars($error); ?>
                 </div>
                 <?php endif; ?>
                 
-                <form method="POST">
+                <form method="POST" novalidate>
                     <?php echo csrf_field(); ?>
                     <div class="form-grid-2">
                         <div class="field">
-                            <input type="text" id="first_name" name="first_name" placeholder=" " required>
+                            <input type="text" id="first_name" name="first_name" placeholder=" " required aria-label="First name">
                             <label for="first_name">First Name</label>
                         </div>
                         <div class="field">
-                            <input type="text" id="last_name" name="last_name" placeholder=" " required>
+                            <input type="text" id="last_name" name="last_name" placeholder=" " required aria-label="Last name">
                             <label for="last_name">Last Name</label>
                         </div>
                     </div>
                     
                     <div class="field">
-                        <input type="text" id="username" name="username" placeholder=" " required minlength="3" onblur="checkUsernameAvailability(this.value)">
+                        <input type="text" id="username" name="username" placeholder=" " required minlength="3" aria-label="Username" onblur="checkUsernameAvailability(this.value)">
                         <label for="username">Username</label>
-                        <div class="username-status" style="font-size: var(--text-xs); margin-top: var(--sp-2);"></div>
+                        <div class="username-status" style="font-size: var(--text-xs); margin-top: var(--sp-2);" role="status" aria-live="polite"></div>
                     </div>
                     
                     <div class="field">
-                        <input type="email" id="email" name="email" placeholder=" " required>
+                        <input type="email" id="email" name="email" placeholder=" " required aria-label="Email address">
                         <label for="email">Email address</label>
                     </div>
                     
                     <div class="field">
-                        <input type="password" id="password" name="password" placeholder=" " required minlength="8" data-strength onkeyup="initPasswordStrength();">
+                        <input type="password" id="password" name="password" placeholder=" " required minlength="8" data-strength aria-label="Password" aria-describedby="strength-text" onkeyup="initPasswordStrength();">
                         <label for="password">Password</label>
                         <div class="strength-meter">
                             <div class="strength-bar"></div>
                         </div>
-                        <div class="strength-text"></div>
+                        <div class="strength-text" id="strength-text"></div>
                     </div>
                     
                     <div class="field">
-                        <input type="password" id="confirm" name="confirm" placeholder=" " required minlength="8">
+                        <input type="password" id="confirm" name="confirm" placeholder=" " required minlength="8" aria-label="Confirm password">
                         <label for="confirm">Confirm Password</label>
                     </div>
                     
                     <div class="checkbox" style="margin-bottom: var(--sp-6);">
-                        <input type="checkbox" id="terms" name="terms" required>
+                        <input type="checkbox" id="terms" name="terms" required aria-label="I agree to Terms and Conditions">
                         <label for="terms">I agree to Terms and Conditions</label>
                     </div>
                     

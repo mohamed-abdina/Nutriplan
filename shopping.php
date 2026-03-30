@@ -61,8 +61,8 @@ $progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
             <!-- Topbar -->
             <div class="topbar flex-between">
                 <h1>🛒 Shopping List</h1>
-                <div style="font-size: var(--text-sm); color: var(--text-2);">
-                    <span class="progress-text"><?php echo $purchased; ?> of <?php echo $total_items; ?></span>
+                <div style="font-size: var(--text-sm); color: var(--text-2);" aria-label="Shopping list progress" role="status">
+                    <span class="progress-text"><span aria-hidden="true"><?php echo $purchased; ?> of <?php echo $total_items; ?></span> items purchased</span>
                 </div>
             </div>
             
@@ -77,19 +77,19 @@ $progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
             <div style="margin-bottom: var(--sp-8);">
                 <?php foreach ($items_by_category as $category => $items): ?>
                 <div style="margin-bottom: var(--sp-8);">
-                    <h3 style="margin-bottom: var(--sp-4); color: var(--text-2);"><?php echo $category; ?></h3>
-                    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden;">
+                    <h3 style="margin-bottom: var(--sp-4); color: var(--text-2);"><?php echo htmlspecialchars($category); ?></h3>
+                    <ul style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; list-style: none; padding: 0; margin: 0;" role="list">
                         <?php foreach ($items as $item): ?>
-                        <div class="list-item-layout <?php echo $item['purchased'] ? 'list-item-checked' : ''; ?>" data-item-id="<?php echo $item['item_id']; ?>" <?php echo $item['purchased'] ? 'style="opacity: 0.5;"' : ''; ?>>
-                            <input type="checkbox" class="list-item-checkbox" <?php echo $item['purchased'] ? 'checked' : ''; ?> onchange="toggleShoppingItem(<?php echo $item['item_id']; ?>)">
-                            <div class="list-item-content">
-                                <div class="list-item-name" <?php echo $item['purchased'] ? 'style="text-decoration: line-through;"' : ''; ?>><?php echo $item['item_name']; ?></div>
-                                <div class="list-item-quantity"><?php echo $item['quantity']; ?></div>
-                            </div>
-                            <button class="btn-ghost" onclick="deleteShoppingItem(<?php echo $item['item_id']; ?>)" style="border: none; background: none; color: var(--danger); cursor: pointer; padding: var(--sp-2);">🗑</button>
-                        </div>
+                        <li class="list-item-layout <?php echo $item['purchased'] ? 'list-item-checked' : ''; ?>" data-item-id="<?php echo (int)$item['item_id']; ?>" role="listitem">
+                            <label style="display: flex; align-items: center; gap: var(--sp-3); flex: 1; width: 100%; padding: var(--sp-4) var(--sp-3);">
+                                <input type="checkbox" class="list-item-checkbox" <?php echo $item['purchased'] ? 'checked' : ''; ?> aria-label="Mark <?php echo htmlspecialchars($item['item_name']); ?> as purchased" onchange="toggleShoppingItem(<?php echo (int)$item['item_id']; ?>)">
+                                <span class="list-item-text" style="flex: 1; <?php echo $item['purchased'] ? 'text-decoration: line-through; color: var(--text-3);' : ''; ?>"><?php echo htmlspecialchars($item['item_name']); ?></span>
+                                <span class="list-item-quantity" style="font-size: var(--text-sm); color: var(--text-2);"><?php echo htmlspecialchars($item['quantity']); ?></span>
+                            </label>
+                            <button class="list-item-delete" aria-label="Delete <?php echo htmlspecialchars($item['item_name']); ?>" onclick="deleteShoppingItem(<?php echo (int)$item['item_id']; ?>)" title="Delete item">🗑</button>
+                        </li>
                         <?php endforeach; ?>
-                    </div>
+                    </ul>
                 </div>
                 <?php endforeach; ?>
             </div>
@@ -97,9 +97,9 @@ $progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
             <!-- Add Custom Item -->
             <div style="background: var(--overlay); border: 1px solid var(--border); border-radius: 12px; padding: var(--sp-6);">
                 <p style="font-size: var(--text-sm); color: var(--text-2); margin-bottom: var(--sp-4);">Not finding something? Add a custom item.</p>
-                <form style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-4);" class="custom-item-form">
-                    <input type="text" id="custom-item-name" placeholder="Item name" class="form-input">
-                    <input type="text" id="custom-item-qty" placeholder="Quantity" class="form-input">
+                <form style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-4);" class="custom-item-form" novalidate>
+                    <input type="text" id="custom-item-name" placeholder="Item name" class="form-input" required aria-label="Custom item name">
+                    <input type="text" id="custom-item-qty" placeholder="Quantity" class="form-input" aria-label="Quantity">
                     <button type="button" class="btn btn-primary btn-sm" onclick="addCustomItem()">Add</button>
                 </form>
             </div>

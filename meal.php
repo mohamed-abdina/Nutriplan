@@ -83,7 +83,8 @@ $total_ratings = $avg_rating_row ? (int)$avg_rating_row['total_ratings'] : 0;
                     <h3 style="margin-bottom: var(--sp-4);">Nutrition Info</h3>
                     
                     <!-- Nutrition Ring -->
-                    <svg viewBox="0 0 120 120" class="nutrition-ring">
+                    <svg viewBox="0 0 120 120" class="nutrition-ring" role="img" aria-label="Calorie breakdown: <?php echo $meal['calories']; ?> kcal with <?php echo $meal['proteins_g']; ?>g protein, <?php echo $meal['carbs_g']; ?>g carbs, <?php echo $meal['fats_g']; ?>g fats">
+                        <title>Nutrition breakdown</title>
                         <circle cx="60" cy="60" r="50" fill="none" stroke="var(--elevated)" stroke-width="12"/>
                         <circle cx="60" cy="60" r="50" fill="none" stroke="var(--accent)" stroke-width="12" stroke-dasharray="<?php echo ($meal['proteins_g']/$total_macros)*314; ?> 314" stroke-dashoffset="-78"/>
                         <circle cx="60" cy="60" r="50" fill="none" stroke="var(--primary)" stroke-width="12" stroke-dasharray="<?php echo ($meal['carbs_g']/$total_macros)*314; ?> 314" stroke-dashoffset="<?php echo -(78 + ($meal['proteins_g']/$total_macros)*314); ?>"/>
@@ -118,16 +119,16 @@ $total_ratings = $avg_rating_row ? (int)$avg_rating_row['total_ratings'] : 0;
             
             <!-- Tabs -->
             <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: var(--sp-6);">
-                <div class="tab-button-group">
-                    <button class="tab-btn active" data-tab="ingredients">📋 Ingredients</button>
-                    <button class="tab-btn" data-tab="nutrition">💪 Nutrition</button>
-                    <button class="tab-btn" data-tab="preparation">👨‍🍳 Preparation</button>
-                    <button class="tab-btn" data-tab="ratings">⭐ Your Rating</button>
-                    <button class="tab-btn" data-tab="sources">🔗 Recipe Sources</button>
+                <div class="tab-button-group" role="tablist">
+                    <button class="tab-btn active" data-tab="ingredients" role="tab" aria-selected="true" aria-controls="ingredients-panel" id="ingredients-tab">📋 Ingredients</button>
+                    <button class="tab-btn" data-tab="nutrition" role="tab" aria-selected="false" aria-controls="nutrition-panel" id="nutrition-tab">💪 Nutrition</button>
+                    <button class="tab-btn" data-tab="preparation" role="tab" aria-selected="false" aria-controls="preparation-panel" id="preparation-tab">👨‍🍳 Preparation</button>
+                    <button class="tab-btn" data-tab="ratings" role="tab" aria-selected="false" aria-controls="ratings-panel" id="ratings-tab">⭐ Your Rating</button>
+                    <button class="tab-btn" data-tab="sources" role="tab" aria-selected="false" aria-controls="sources-panel" id="sources-tab">🔗 Recipe Sources</button>
                 </div>
                 
                 <!-- Ingredients Tab -->
-                <div id="ingredients" class="tab-panel active">
+                <div id="ingredients-panel" role="tabpanel" aria-labelledby="ingredients-tab" class="tab-panel active">
                     <p style="color: var(--text-2); margin-bottom: var(--sp-4);">Typical ingredients for this meal. Adjust quantities based on serving size.</p>
                     <ul style="list-style: none;">
                         <li style="padding: var(--sp-3) 0; border-bottom: 1px solid var(--border);">
@@ -146,7 +147,7 @@ $total_ratings = $avg_rating_row ? (int)$avg_rating_row['total_ratings'] : 0;
                 </div>
                 
                 <!-- Nutrition Tab -->
-                <div id="nutrition" class="tab-panel hidden">
+                <div id="nutrition-panel" role="tabpanel" aria-labelledby="nutrition-tab" class="tab-panel hidden">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-6);">
                         <div>
                             <div style="padding: var(--sp-3); border-bottom: 1px solid var(--border);">
@@ -180,7 +181,7 @@ $total_ratings = $avg_rating_row ? (int)$avg_rating_row['total_ratings'] : 0;
                 </div>
                 
                 <!-- Preparation Tab -->
-                <div id="preparation" class="tab-panel hidden">
+                <div id="preparation-panel" role="tabpanel" aria-labelledby="preparation-tab" class="tab-panel hidden">
                     <ol style="list-style: decimal; padding-left: var(--sp-6);">
                         <li style="margin-bottom: var(--sp-4); color: var(--text-1);">
                             <span style="font-weight: 500;">Prepare ingredients</span>
@@ -198,7 +199,7 @@ $total_ratings = $avg_rating_row ? (int)$avg_rating_row['total_ratings'] : 0;
                 </div>
                 
                 <!-- Ratings Tab -->
-                <div id="ratings" class="tab-panel hidden">
+                <div id="ratings-panel" role="tabpanel" aria-labelledby="ratings-tab" class="tab-panel hidden">
                     <h4 style="margin-bottom: var(--sp-4);">Rate this Meal</h4>
                     <div style="background: var(--elevated); padding: var(--sp-6); border-radius: 12px; margin-bottom: var(--sp-6);">
                         <div style="margin-bottom: var(--sp-4);">
@@ -221,7 +222,7 @@ $total_ratings = $avg_rating_row ? (int)$avg_rating_row['total_ratings'] : 0;
                 </div>
                 
                 <!-- Recipe Sources Tab -->
-                <div id="sources" class="tab-panel hidden">
+                <div id="sources-panel" role="tabpanel" aria-labelledby="sources-tab" class="tab-panel hidden">
                     <h4 style="margin-bottom: var(--sp-4);">Recipe Sources</h4>
                     <?php if (!empty($sources)): ?>
                     <p style="color: var(--text-2); margin-bottom: var(--sp-4);">Check out these recipes to learn how to prepare this meal:</p>

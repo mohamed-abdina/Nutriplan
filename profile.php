@@ -78,14 +78,14 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
             </div>
             
             <!-- Settings Tabs -->
-            <div class="tab-button-group">
-                <button class="tab-btn tab-button active" data-tab="personal">👤 Personal Info</button>
-                <button class="tab-btn tab-button" data-tab="preferences">⚙️ Preferences</button>
-                <button class="tab-btn tab-button" data-tab="security">🔐 Security</button>
+            <div class="tab-button-group" role="tablist">
+                <button class="tab-btn tab-button active" data-tab="personal" role="tab" aria-selected="true" aria-controls="personal-panel" id="personal-tab">👤 Personal Info</button>
+                <button class="tab-btn tab-button" data-tab="preferences" role="tab" aria-selected="false" aria-controls="preferences-panel" id="preferences-tab">⚙️ Preferences</button>
+                <button class="tab-btn tab-button" data-tab="security" role="tab" aria-selected="false" aria-controls="security-panel" id="security-tab">🔐 Security</button>
             </div>
             
             <!-- Personal Info Tab -->
-            <div id="personal" class="tab-panel active">
+            <div id="personal-panel" role="tabpanel" aria-labelledby="personal-tab" class="tab-panel active">
                 <div style="max-width: 500px;">
                     <?php if ($update_success): ?>
                     <div style="background: rgba(52, 211, 153, 0.15); border: 1px solid var(--success); border-radius: 8px; padding: var(--sp-4); margin-bottom: var(--sp-6); color: var(--success); font-size: var(--text-sm);">
@@ -123,7 +123,7 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
             </div>
             
             <!-- Preferences Tab -->
-            <div id="preferences" class="tab-panel hidden">
+            <div id="preferences-panel" role="tabpanel" aria-labelledby="preferences-tab" class="tab-panel hidden">
                 <div style="max-width: 500px;">
                     <div id="preferences-content" style="background: var(--elevated); border-radius: 12px; padding: var(--sp-6);">
                         <div class="field">
@@ -164,7 +164,7 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
             </div>
             
             <!-- Security Tab -->
-            <div id="security" class="tab-panel hidden">
+            <div id="security-panel" role="tabpanel" aria-labelledby="security-tab" class="tab-panel hidden">
                 <div style="max-width: 500px;">
                     <p style="color: var(--text-2); margin-bottom: var(--sp-6);">Manage your account security settings.</p>
                     
@@ -210,14 +210,26 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
         // Load preferences on page load
         window.addEventListener('load', loadPreferences);
         
-        // Tab switching
+        // Tab switching - update ARIA attributes
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 const tabName = this.getAttribute('data-tab');
+                const tabPanel = document.getElementById(tabName + '-panel');
+                
+                // Hide all tab panels and update ARIA
                 document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
-                document.querySelectorAll('.tab-btn').forEach(b => b.style.color = 'var(--text-2)');
-                document.getElementById(tabName).classList.remove('hidden');
-                this.style.color = 'var(--text-1)';
+                document.querySelectorAll('.tab-btn').forEach(b => {
+                    b.classList.remove('active');
+                    b.setAttribute('aria-selected', 'false');
+                });
+                
+                // Show selected tab panel and update ARIA
+                if (tabPanel) {
+                    tabPanel.classList.remove('hidden');
+                    this.classList.add('active');
+                    this.setAttribute('aria-selected', 'true');
+                    this.focus();
+                }
             });
         });
         

@@ -585,13 +585,28 @@ document.addEventListener('click', (e) => {
         const tabId = e.target.dataset.tab;
         
         // Remove active from all buttons and panels
-        tabGroup.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-        document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+        tabGroup.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+            btn.setAttribute('aria-selected', 'false');
+        });
+        document.querySelectorAll('.tab-panel').forEach(panel => {
+            panel.classList.remove('active');
+            panel.classList.add('hidden');
+        });
         
         // Add active to clicked button and matching panel
         e.target.classList.add('active');
-        const panel = document.getElementById(tabId);
-        if (panel) panel.classList.add('active');
+        e.target.setAttribute('aria-selected', 'true');
+        
+        // Find the panel by matching the aria-controls or ID pattern
+        const panelId = e.target.getAttribute('aria-controls') || (tabId + '-panel');
+        const panel = document.getElementById(panelId);
+        if (panel) {
+            panel.classList.add('active');
+            panel.classList.remove('hidden');
+        }
+        
+        e.target.focus();
     }
 });
 

@@ -117,6 +117,9 @@ ob_end_flush();
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
+    <!-- Skip to content link for accessibility -->
+    <a href="#main-content" class="sr-only-skip">Skip to login form</a>
+    
     <div class="split-layout">
         <!-- Left Panel -->
         <div class="split-layout-left">
@@ -135,26 +138,26 @@ ob_end_flush();
         </div>
         
         <!-- Right Panel (Form) -->
-        <div class="split-layout-right">
+        <div class="split-layout-right" id="main-content">
             <div style="max-width: 400px; margin: 0 auto; width: 100%;">
                 <h2 style="margin-bottom: var(--sp-8);">Welcome Back</h2>
                 
                 <?php if (!empty($error)): ?>
-                <div style="background: rgba(248, 113, 113, 0.15); border: 1px solid var(--danger); border-radius: 8px; padding: var(--sp-4); margin-bottom: var(--sp-6); color: var(--danger); font-size: var(--text-sm);">
-                    <?php echo $error; ?>
+                <div class="alert-error" role="alert" aria-live="polite">
+                    <?php echo htmlspecialchars($error); ?>
                 </div>
                 <?php endif; ?>
                 
-                <form method="POST" class="ajax-form" action="">
+                <form method="POST" class="ajax-form" action="" novalidate>
                     <div class="field">
-                        <input type="email" id="email" name="email" placeholder=" " required>
+                        <input type="email" id="email" name="email" placeholder=" " required aria-label="Email address">
                         <label for="email">Email address</label>
                     </div>
                     
                     <div class="field" style="position: relative;">
-                        <input type="password" id="password" name="password" placeholder=" " required>
+                        <input type="password" id="password" name="password" placeholder=" " required aria-label="Password">
                         <label for="password">Password</label>
-                        <button type="button" class="password-visibility" onclick="togglePassword('password')">👁</button>
+                        <button type="button" class="password-visibility" aria-label="Toggle password visibility" onclick="togglePassword('password')">👁</button>
                     </div>
                     
                     <a href="#" style="font-size: var(--text-sm); color: var(--primary); text-decoration: none; display: block; margin-bottom: var(--sp-6); text-align: right;">Forgot password?</a>

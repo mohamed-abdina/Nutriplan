@@ -30,7 +30,7 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
             <!-- Search Bar -->
             <div style="background: var(--surface); padding: var(--sp-6); border-radius: 14px; border: 1px solid var(--border); margin-bottom: var(--sp-8);">
                 <div class="field" style="margin-bottom: 0;">
-                    <input type="text" id="searchInput" placeholder=" " autocomplete="off" onkeyup="handleSearch()">
+                    <input type="text" id="searchInput" placeholder=" " autocomplete="off" aria-label="Search meals by name or ingredient" role="searchbox" onkeyup="debounceSearchHandle()">
                     <label for="searchInput">Search by meal name or ingredient</label>
                 </div>
             </div>
@@ -38,21 +38,21 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
             <!-- Filter Chips -->
             <div style="margin-bottom: var(--sp-8);">
                 <p style="font-size: var(--text-sm); color: var(--text-2); margin-bottom: var(--sp-3);">Category</p>
-                <div class="chip-group">
-                    <button class="chip active" data-filter="all" onclick="handleSearch()">All</button>
+                <div class="chip-group" role="group" aria-label="Filter meals by category">
+                    <button class="chip active" data-filter="all" aria-pressed="true" onclick="handleSearch()">All</button>
                     <?php foreach ($categories as $cat): ?>
-                    <button class="chip" data-filter="<?php echo $cat['category_id']; ?>" onclick="handleSearch()"><?php echo $cat['category_icon']; ?> <?php echo $cat['category_name']; ?></button>
+                    <button class="chip" data-filter="<?php echo $cat['category_id']; ?>" aria-pressed="false" onclick="handleSearch()"><?php echo $cat['category_icon']; ?> <?php echo $cat['category_name']; ?></button>
                     <?php endforeach; ?>
                 </div>
             </div>
             
             <!-- Results Grid -->
-            <div id="results-container" class="grid-2 stagger-container">
+            <div id="results-container" class="grid-2 stagger-container" role="region" aria-label="Search results" aria-live="polite" aria-busy="false">
                 <!-- Results will be loaded here -->
             </div>
             
             <!-- No Results -->
-            <div id="no-results" class="hidden" style="text-align: center; padding: var(--sp-12);">
+            <div id="no-results" class="hidden" style="text-align: center; padding: var(--sp-12);" role="status" aria-live="polite" aria-label="No meals found">
                 <div style="font-size: 3rem; margin-bottom: var(--sp-4);">🍽</div>
                 <h3>No meals found</h3>
                 <p style="color: var(--text-2); margin-top: var(--sp-2);">Try different keywords or filters</p>
@@ -62,14 +62,31 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
     
     <script src="assets/js/main.js" defer></script>
     <script>
+        // Debounced search to prevent too many requests
+        let searchTimeout;
+        function debounceSearchHandle() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                handleSearch();
+            }, 300);
+        }
+
         async function handleSearch() {
             const query = document.getElementById('searchInput').value;
             const activeChip = document.querySelector('.chip.active');
             const category = activeChip && activeChip.dataset.filter !== 'all' ? activeChip.dataset.filter : '';
-            // Always fetch, even if both are empty, to show all meals by default
+            
+            // Update aria-pressed state on chips
+            document.querySelectorAll('.chip').forEach(chip => {
+                const isActive = chip === activeChip;
+                chip.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            });
 
             const container = document.getElementById('results-container');
             const noResults = document.getElementById('no-results');
+
+            // Mark as loading for screen readers
+            container.setAttribute('aria-busy', 'true');
 
             // Show skeleton loaders
             const skeletonCount = 4;
@@ -97,12 +114,14 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
                 const response = await fetch(url);
                 const data = await response.json();
 
+                container.setAttribute('aria-busy', 'false');
+
                 if (data.meals && data.meals.length > 0) {
                     container.innerHTML = data.meals.map((meal, index) => `
                         <article class="meal-card stagger-item" style="--card-accent: var(--primary); animation-delay: ${index * 60}ms">
                             <div class="card-accent-strip"></div>
                             <div class="card-body">
-                                <div class="card-icon">${meal.meal_icon}</div>
+                                <div class="card-icon" aria-hidden="true">${meal.meal_icon}</div>
                                 <div style="flex: 1;">
                                     <div class="card-title">${meal.meal_name}</div>
                                     <span class="card-category">${meal.category_name}</span>
@@ -110,7 +129,7 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
                                 </div>
                             </div>
                             <div class="card-actions">
-                                <button class="btn-ghost btn-sm" onclick="addToShoppingList(${meal.meal_id})">+ Add</button>
+                                <button class="btn-ghost btn-sm" aria-label="Add ${meal.meal_name} to shopping list" onclick="addToShoppingList(${meal.meal_id})">+ Add</button>
                                 <a href="meal.php?id=${meal.meal_id}" class="btn-outline btn-sm">Details →</a>
                             </div>
                         </article>
@@ -122,6 +141,7 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
                 }
             } catch (error) {
                 console.error('Search error:', error);
+                container.setAttribute('aria-busy', 'false');
                 showToast('Search failed', 'error');
                 container.innerHTML = '';
                 noResults.classList.remove('hidden');
