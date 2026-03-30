@@ -77,16 +77,17 @@ $progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
             <div style="margin-bottom: var(--sp-8);">
                 <?php foreach ($items_by_category as $category => $items): ?>
                 <div style="margin-bottom: var(--sp-8);">
-                    <h3 style="margin-bottom: var(--sp-4); color: var(--text-2);"><?php echo htmlspecialchars($category); ?></h3>
+                    <h3 class="category-header" style="margin-bottom: var(--sp-4); color: var(--text-2);"><?php echo htmlspecialchars($category); ?></h3>
                     <ul style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; list-style: none; padding: 0; margin: 0;" role="list">
                         <?php foreach ($items as $item): ?>
-                        <li class="list-item-layout <?php echo $item['purchased'] ? 'list-item-checked' : ''; ?>" data-item-id="<?php echo (int)$item['item_id']; ?>" role="listitem">
+                        <li class="list-item-layout swipe-enabled <?php echo $item['purchased'] ? 'list-item-checked' : ''; ?>" data-item-id="<?php echo (int)$item['item_id']; ?>" role="listitem">
+                            <div class="swipe-delete-hint" aria-hidden="true">🗑 Delete</div>
                             <label style="display: flex; align-items: center; gap: var(--sp-3); flex: 1; width: 100%; padding: var(--sp-4) var(--sp-3);">
                                 <input type="checkbox" class="list-item-checkbox" <?php echo $item['purchased'] ? 'checked' : ''; ?> aria-label="Mark <?php echo htmlspecialchars($item['item_name']); ?> as purchased" onchange="toggleShoppingItem(<?php echo (int)$item['item_id']; ?>)">
                                 <span class="list-item-text" style="flex: 1; <?php echo $item['purchased'] ? 'text-decoration: line-through; color: var(--text-3);' : ''; ?>"><?php echo htmlspecialchars($item['item_name']); ?></span>
                                 <span class="list-item-quantity" style="font-size: var(--text-sm); color: var(--text-2);"><?php echo htmlspecialchars($item['quantity']); ?></span>
                             </label>
-                            <button class=\"list-item-delete\" aria-label=\"Delete <?php echo htmlspecialchars($item['item_name']); ?>\" onclick=\"if(confirm('Delete \\\"<?php echo htmlspecialchars(str_replace('\"', '&quot;', $item['item_name']), ENT_QUOTES); ?>\\\" from your list?')) deleteShoppingItem(<?php echo (int)$item['item_id']; ?>)\" title=\"Delete item\">🗑</button>
+                            <button class="list-item-delete" aria-label="Delete <?php echo htmlspecialchars($item['item_name']); ?>" onclick="if(confirm('Delete \\\"<?php echo htmlspecialchars(str_replace('\"', '&quot;', $item['item_name']), ENT_QUOTES); ?>\\\" from your list?')) deleteShoppingItem(<?php echo (int)$item['item_id']; ?>)" title="Delete item (or swipe left on mobile)">🗑</button>
                         </li>
                         <?php endforeach; ?>
                     </ul>

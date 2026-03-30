@@ -861,3 +861,223 @@ function showLoader(show = true) {
     
     loader.style.display = show ? 'flex' : 'none';
 }
+
+// ========================================
+// SECTION 23: HAPTIC FEEDBACK
+// ========================================
+
+function triggerHaptic(intensity = 'light') {
+    if (!navigator.vibrate) return;
+    
+    const patterns = {
+        'light': 10,
+        'medium': 20,
+        'heavy': [20, 10, 20]
+    };
+    
+    const pattern = patterns[intensity] || patterns.light;
+    navigator.vibrate(pattern);
+}
+
+// Add haptic feedback to buttons and interactive elements
+document.addEventListener('click', (e) => {
+    if (e.target.closest('button') || e.target.closest('.btn') || e.target.closest('.chip') || e.target.closest('.tab-btn')) {
+        triggerHaptic('light');
+    }
+});
+
+// Haptic on checkbox toggle
+document.addEventListener('change', (e) => {
+    if (e.target.type === 'checkbox') {
+        triggerHaptic('light');
+    }
+});
+
+// ========================================
+// SECTION 24: SWIPE-TO-DELETE SUPPORT
+// ========================================
+
+function initSwipeToDelete() {
+    const listItems = document.querySelectorAll('.list-item-layout');
+    
+    listItems.forEach(item => {
+        let touchStartX = 0;
+        let touchEndX = 0;
+        let isBeingDeleted = false;
+        
+        item.addEventListener('touchstart', (e) => {
+            if (isBeingDeleted) return;
+            touchStartX = e.changedTouches[0].screenX;
+        }, false);
+        
+        item.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            const swipeDistance = touchStartX - touchEndX;
+            
+            // Swipe left to delete (> 80px swipe)
+            if (swipeDistance > 80) {
+                const deleteBtn = item.querySelector('.list-item-delete');
+                if (deleteBtn) {
+                    triggerHaptic('medium');
+                    deleteBtn.click();
+                    isBeingDeleted = true;
+                }
+            }
+        }, false);
+        
+        // Add touch-action to prevent default scrolling conflicts
+        item.style.touchAction = 'pan-y';
+    });
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+    initSwipeToDelete();
+});
+
+// ========================================
+// SECTION 25: ENHANCED PASSWORD STRENGTH
+// ========================================
+
+// Override the updatePasswordStrength to add color classes
+const originalUpdatePasswordStrength = updatePasswordStrength;
+function updatePasswordStrength(field) {
+    const strength = getPasswordStrength(field.value);
+    const text = field.parentElement.querySelector('.strength-text');
+    
+    if (text) {
+        text.classList.remove('has-weak', 'has-fair', 'has-good', 'has-strong');
+        if (strength === 1) text.classList.add('has-weak');
+        else if (strength === 2) text.classList.add('has-fair');
+        else if (strength === 3) text.classList.add('has-good');
+        else if (strength === 4) text.classList.add('has-strong');
+    }
+    
+    // Call original implementation
+    originalUpdatePasswordStrength(field);
+}
+
+// ========================================
+// SECTION 26: IMPROVED TAB SWITCHING FOR MOBILE
+// ========================================
+
+document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('tab-btn')) {
+        const tabGroup = e.target.parentElement;
+        const tabId = e.target.dataset.tab;
+        
+        // Add haptic feedback
+        triggerHaptic('light');
+        
+        // Remove active from all buttons and panels
+        tabGroup.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+            btn.setAttribute('aria-selected', 'false');
+        });
+        document.querySelectorAll('.tab-panel').forEach(panel => {
+            panel.classList.remove('active');
+            panel.classList.add('hidden');
+        });
+        
+        // Add active to clicked button and matching panel
+        e.target.classList.add('active');
+        e.target.setAttribute('aria-selected', 'true');
+        
+        // Find the panel by matching the aria-controls or ID pattern
+        const panelId = e.target.getAttribute('aria-controls') || (tabId + '-panel');
+        const panel = document.getElementById(panelId);
+        if (panel) {
+            panel.classList.add('active');
+            panel.classList.remove('hidden');
+            
+            // Smooth scroll panel into view on mobile
+            if (window.innerWidth <= 768) {
+                setTimeout(() => {
+                    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
+            }
+        }
+        
+        e.target.focus();
+    }
+});
+
+// ========================================
+// SECTION 27: ENHANCED DARK MODE TOGGLE
+// ========================================
+
+// Ensure theme toggle is always visible by adding it if missing
+if (!document.getElementById('themeToggle') && !document.querySelector('.theme-toggle')) {
+    setTimeout(() => {
+        if (!document.getElementById('themeToggle') && !document.querySelector('.theme-toggle')) {
+            const themeToggle = document.createElement('button');
+            themeToggle.id = 'themeToggle';
+            themeToggle.className = 'theme-toggle';
+            themeToggle.setAttribute('aria-label', 'Toggle dark/light mode');
+            themeToggle.setAttribute('title', 'Toggle dark/light mode');
+            const html = document.documentElement;
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            themeToggle.textContent = savedTheme === 'dark' ? '☀️ Light' : '🌙 Dark';
+            document.body.appendChild(themeToggle);
+            
+            themeToggle.addEventListener('click', () => {
+                const current = html.getAttribute('data-theme');
+                const next = current === 'dark' ? 'light' : 'dark';
+                
+                html.setAttribute('data-theme', next);
+                localStorage.setItem('theme', next);
+                themeToggle.textContent = next === 'dark' ? '☀️ Light' : '🌙 Dark';
+                
+                // Haptic feedback for theme toggle
+                triggerHaptic('medium');
+            });
+        }
+    }, 500);
+}
+
+// ========================================
+// SECTION 28: STICKY CATEGORY HEADERS
+// ========================================
+
+function initStickyCategoryHeaders() {
+    const categoryHeaders = document.querySelectorAll('h3[style*="margin-bottom"]');
+    
+    categoryHeaders.forEach((header) => {
+        // Check if this is a category header (in shopping list context)
+        if (header.textContent && header.parentElement && header.parentElement.querySelector('ul')) {
+            header.classList.add('category-header');
+        }
+    });
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+    initStickyCategoryHeaders();
+});
+
+// ========================================
+// SECTION 29: KEYBOARD ACCESSIBILITY ENHANCEMENTS
+// ========================================
+
+// Add keyboard navigation for shopping list items
+document.addEventListener('keydown', (e) => {
+    if (e.target.classList.contains('list-item-checkbox')) {
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+            e.preventDefault();
+            const deleteBtn = e.target.closest('.list-item-layout').querySelector('.list-item-delete');
+            if (deleteBtn) {
+                triggerHaptic('medium');
+                deleteBtn.click();
+            }
+        }
+    }
+});
+
+// ========================================
+// SECTION 30: PROGRESSIVE ENHANCEMENT CHECK
+// ========================================
+
+// Log support for advanced features
+console.log('Haptic Feedback Support:', navigator.vibrate ? '✓' : '✗');
+console.log('Touch Events Support:', 'ontouchstart' in window ? '✓' : '✗');
+console.log('Service Worker Support:', 'serviceWorker' in navigator ? '✓' : '✗');

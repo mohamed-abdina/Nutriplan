@@ -80,12 +80,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 <!-- Progress indicator -->
                 <div style="margin-top: var(--sp-12);">
-                    <div style="display: flex; align-items: center; margin-bottom: var(--sp-6);">
-                        <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--grad-primary); color: #030712; display: flex; align-items: center; justify-content: center; font-weight: 700;">1</div>
-                        <div style="flex: 1; height: 1px; background: var(--border); margin: 0 var(--sp-3);"></div>
-                        <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--border); color: var(--text-2); display: flex; align-items: center; justify-content: center; font-weight: 700;">2</div>
-                        <div style="flex: 1; height: 1px; background: var(--border); margin: 0 var(--sp-3);"></div>
-                        <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--border); color: var(--text-2); display: flex; align-items: center; justify-content: center; font-weight: 700;">3</div>
+                    <div style="display: flex; align-items: center; margin-bottom: var(--sp-6); gap: clamp(4px, 2vw, 12px);">
+                        <div style="width: clamp(28px, 8vw, 36px); height: clamp(28px, 8vw, 36px); border-radius: 50%; background: var(--grad-primary); color: #030712; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: clamp(0.75rem, 2vw, 0.875rem);">1</div>
+                        <div style="flex: 1; height: 1px; background: var(--border); margin: 0 clamp(4px, 1.5vw, 12px);"></div>
+                        <div style="width: clamp(28px, 8vw, 36px); height: clamp(28px, 8vw, 36px); border-radius: 50%; background: var(--border); color: var(--text-2); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: clamp(0.75rem, 2vw, 0.875rem);">2</div>
+                        <div style="flex: 1; height: 1px; background: var(--border); margin: 0 clamp(4px, 1.5vw, 12px);"></div>
+                        <div style="width: clamp(28px, 8vw, 36px); height: clamp(28px, 8vw, 36px); border-radius: 50%; background: var(--border); color: var(--text-2); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: clamp(0.75rem, 2vw, 0.875rem);">3</div>
                     </div>
                     <p style="font-size: var(--text-sm); color: var(--text-2);">Account Creation</p>
                 </div>
@@ -94,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         <!-- Right Panel (Form) -->
         <div class="split-layout-right" id="main-content">
-            <div style="max-width: 400px; margin: 0 auto; width: 100%; padding: var(--sp-6) 0;">
+            <div style="max-width: clamp(280px, 95vw, 400px); margin: 0 auto; width: 100%; padding: var(--sp-6) 0;">
                 <h2 style="margin-bottom: var(--sp-8);">Create Account</h2>
                 
                 <?php if (!empty($error)): ?>
@@ -128,17 +128,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     
                     <div class="field">
-                        <input type="password" id="password" name="password" placeholder=" " required minlength="8" data-strength aria-label="Password" aria-describedby="strength-text" onkeyup="initPasswordStrength();">
+                        <input type="password" id="password" name="password" placeholder=" " required minlength="8" data-strength aria-label="Password" aria-describedby="strength-text" onkeyup="updatePasswordStrengthDisplay();">
                         <label for="password">Password</label>
                         <div class="strength-meter">
                             <div class="strength-bar"></div>
                         </div>
-                        <div class="strength-text" id="strength-text"></div>
+                        <div class="strength-text" id="strength-text">Minimum 8 characters, include uppercase, numbers, and symbols</div>
                     </div>
                     
                     <div class="field">
-                        <input type="password" id="confirm" name="confirm" placeholder=" " required minlength="8" aria-label="Confirm password">
+                        <input type="password" id="confirm" name="confirm" placeholder=" " required minlength="8" aria-label="Confirm password" oninput="checkPasswordMatch()">
                         <label for="confirm">Confirm Password</label>
+                        <div id="password-match-status" style="font-size: var(--text-xs); margin-top: var(--sp-2); min-height: 18px;"></div>
                     </div>
                     
                     <div class="checkbox" style="margin-bottom: var(--sp-6);">
@@ -157,5 +158,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
     
     <script src="assets/js/main.js" defer></script>
-</body>
-</html>
+    <script>
+        function updatePasswordStrengthDisplay() {
+            const field = document.getElementById('password');
+            if (!field) return;
+            
+            const strength = getPasswordStrength(field.value);
+            const meter = field.parentElement.querySelector('.strength-meter');
+            const text = field.parentElement.querySelector('.strength-text');
+            
+            if (!meter || !text) return;
+            
+            const bar = meter.querySelector('.strength-bar');
+            const labels = ['', 'Weak — Add uppercase, numbers, or symbols', 'Fair — Add more variety', 'Good — Strong password', 'Strong — Excellent!'];
+            const colors = ['', 'var(--danger)', 'var(--warning)', 'var(--primary)', 'var(--success)'];
+            const classes = ['', 'has-weak', 'has-fair', 'has-good', 'has-strong'];
+            
+            bar.style.width = (strength / 4) * 100 + '%';
+            bar.style.backgroundColor = colors[strength];
+            
+            text.textContent = labels[strength];
+            text.className = 'strength-text ' + (classes[strength] || '');
+        }
+        
+        function checkPasswordMatch() {
+            const password = document.getElementById('password').value;
+            const confirm = document.getElementById('confirm').value;
+            const statusEl = document.getElementById('password-match-status');
+            
+            if (!confirm) {
+                statusEl.textContent = '';
+                return;
+            }
+            
+            if (password === confirm) {
+                statusEl.textContent = '✓ Passwords match';
+                statusEl.style.color = 'var(--success)';
+            } else {
+                statusEl.textContent = '✕ Passwords don\'t match';
+                statusEl.style.color = 'var(--danger)';
+            }
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            updatePasswordStrengthDisplay();
+            
+            // Trigger haptic feedback on input
+            document.getElementById('password')?.addEventListener('input', () => {
+                triggerHaptic('light');
+            });
+        });
+    </script>

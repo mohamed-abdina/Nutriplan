@@ -139,7 +139,7 @@ ob_end_flush();
         
         <!-- Right Panel (Form) -->
         <div class="split-layout-right" id="main-content">
-            <div style="max-width: 400px; margin: 0 auto; width: 100%;">
+            <div style="max-width: clamp(280px, 95vw, 400px); margin: 0 auto; width: 100%;">
                 <h2 style="margin-bottom: var(--sp-8);">Welcome Back</h2>
                 
                 <?php if (!empty($error)): ?>

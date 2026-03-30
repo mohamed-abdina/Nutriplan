@@ -57,9 +57,9 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
             <!-- Profile Header -->
             <div class="responsive-profile-card card">
                 <div style="height: 4px; background: var(--grad-primary); margin: -24px -24px 0; margin-bottom: var(--sp-6);"></div>
-                <div style="position: relative; width: 96px; height: 96px; margin: 0 auto var(--sp-4);">
+                <div style="position: relative; width: clamp(80px, 25vw, 96px); height: clamp(80px, 25vw, 96px); margin: 0 auto var(--sp-4);">
                     <div class="profile-avatar" style="width: 100%; height: 100%; background: var(--grad-primary); border-radius: 50%; background-size: cover; background-position: center;"></div>
-                    <button onclick="document.getElementById('avatar-input').click()" style="position: absolute; bottom: 0; right: 0; width: 32px; height: 32px; background: var(--primary); border: 2px solid var(--bg); border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center;">✏️</button>
+                    <button onclick="document.getElementById('avatar-input').click()" style="position: absolute; bottom: 0; right: 0; width: 32px; height: 32px; background: var(--primary); border: 2px solid var(--bg); border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; min-width: 32px; min-height: 32px;">✏️</button>
                     <input type="file" id="avatar-input" accept="image/*" style="display: none;" onchange="const file=this.files[0];  if(file)handleAvatarUpload(file);">
                 </div>
                 
@@ -84,8 +84,8 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
             </div>
             
             <!-- Settings Tabs -->
-            <div class="tab-button-group" role="tablist">
-                <button class="tab-btn tab-button active" data-tab="personal" role="tab" aria-selected="true" aria-controls="personal-panel" id="personal-tab">👤 Personal Info</button>
+            <div class="tab-button-group" role="tablist" style="margin-bottom: var(--sp-8);">
+                <button class="tab-btn tab-button active" data-tab="personal" role="tab" aria-selected="true" aria-controls="personal-panel" id="personal-tab">👤 Personal</button>
                 <button class="tab-btn tab-button" data-tab="favorites" role="tab" aria-selected="false" aria-controls="favorites-panel" id="favorites-tab">⭐ Favorites</button>
                 <button class="tab-btn tab-button" data-tab="analytics" role="tab" aria-selected="false" aria-controls="analytics-panel" id="analytics-tab">📊 Analytics</button>
                 <button class="tab-btn tab-button" data-tab="preferences" role="tab" aria-selected="false" aria-controls="preferences-panel" id="preferences-tab">⚙️ Preferences</button>
@@ -199,19 +199,19 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
                         <!-- Dietary Restrictions -->
                         <div style="margin-bottom: var(--sp-6);">
                             <label for="dietary-restrictions" style="font-size: var(--text-sm); font-weight: 600; color: var(--text-1); display: block; margin-bottom: var(--sp-3);">🥗 Dietary Restrictions</label>
-                            <textarea id="dietary-restrictions" placeholder="e.g., Vegetarian, Vegan, Gluten-free (comma-separated)" style="width: 100%; padding: var(--sp-3); background: var(--inset); border: 1px solid var(--border); border-radius: 8px; color: var(--text-1); font-family: inherit; resize: vertical; min-height: 80px;"></textarea>
+                            <textarea id="dietary-restrictions" placeholder="e.g., Vegetarian, Vegan, Gluten-free (comma-separated)" style="width: 100%; padding: var(--sp-3); background: var(--inset); border: 1px solid var(--border); border-radius: 8px; color: var(--text-1); font-family: inherit; resize: vertical; min-height: clamp(60px, auto, 100px);"></textarea>
                         </div>
                         
                         <!-- Allergies -->
                         <div style="margin-bottom: var(--sp-6);">
                             <label for="allergies" style="font-size: var(--text-sm); font-weight: 600; color: var(--text-1); display: block; margin-bottom: var(--sp-3);">⚠️ Allergies</label>
-                            <textarea id="allergies" placeholder="e.g., Peanuts, Shellfish, Dairy (comma-separated)" style="width: 100%; padding: var(--sp-3); background: var(--inset); border: 1px solid var(--border); border-radius: 8px; color: var(--text-1); font-family: inherit; resize: vertical; min-height: 80px;"></textarea>
+                            <textarea id="allergies" placeholder="e.g., Peanuts, Shellfish, Dairy (comma-separated)" style="width: 100%; padding: var(--sp-3); background: var(--inset); border: 1px solid var(--border); border-radius: 8px; color: var(--text-1); font-family: inherit; resize: vertical; min-height: clamp(60px, auto, 100px);"></textarea>
                         </div>
                         
                         <!-- Preferred Cuisine -->
                         <div style="margin-bottom: var(--sp-6);">
                             <label for="preferred-cuisine" style="font-size: var(--text-sm); font-weight: 600; color: var(--text-1); display: block; margin-bottom: var(--sp-3);">🌍 Preferred Cuisines</label>
-                            <select id="preferred-cuisine" multiple style="width: 100%; padding: var(--sp-3); background: var(--inset); border: 1px solid var(--border); border-radius: 8px; color: var(--text-1); cursor: pointer; min-height: 120px;">
+                            <select id="preferred-cuisine" multiple style="width: 100%; padding: var(--sp-3); background: var(--inset); border: 2px solid var(--border); border-radius: 8px; color: var(--text-1); cursor: pointer; min-height: clamp(120px, auto, 160px); font-size: var(--text-base); line-height: 1.8;">
                                 <option value="african">African</option>
                                 <option value="asian">Asian</option>
                                 <option value="european">European</option>
@@ -221,13 +221,13 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
                                 <option value="mexican">Mexican</option>
                                 <option value="middle-eastern">Middle Eastern</option>
                             </select>
-                            <small style="color: var(--text-2); margin-top: var(--sp-2); display: block;">Hold Ctrl/Cmd to select multiple</small>
+                            <small style="color: var(--text-2); margin-top: var(--sp-2); display: block;">📱 Tap options to select • 💻 Hold Ctrl/Cmd to select multiple</small>
                         </div>
                         
                         <!-- Notifications Toggle -->
                         <div style="margin-bottom: var(--sp-6);">
-                            <label style="display: flex; align-items: center; gap: var(--sp-3); cursor: pointer; padding: var(--sp-3); background: var(--surface); border-radius: 8px;">
-                                <input type="checkbox" id="notifications" checked style="width: 18px; height: 18px; cursor: pointer;">
+                            <label style="display: flex; align-items: center; gap: var(--sp-3); cursor: pointer; padding: var(--sp-2); background: var(--surface); border-radius: 8px; min-height: 48px;">
+                                <input type="checkbox" id="notifications" checked style="width: 44px; height: 44px; cursor: pointer; flex-shrink: 0; accent-color: var(--primary);">
                                 <div>
                                     <div style="color: var(--text-1); font-weight: 500;">🔔 Enable Notifications</div>
                                     <small style="color: var(--text-2);">Get updates on new meal recommendations</small>
