@@ -22,10 +22,10 @@ $sql = "SELECT si.item_id, si.item_name, si.quantity, si.purchased, si.custom_it
         FROM shopping_items si
         LEFT JOIN meals m ON si.meal_id = m.meal_id
         LEFT JOIN categories c ON m.category_id = c.category_id
-        WHERE si.list_id = $list_id
+        WHERE si.list_id = ?
         ORDER BY si.purchased ASC, COALESCE(c.category_id, 999), si.item_name";
 
-$fetched = pdo_fetch_all($sql) ?? [];
+$fetched = pdo_fetch_all($sql, [$list_id]) ?? [];
 $items_by_category = [];
 $total_items = 0;
 $purchased = 0;
@@ -86,7 +86,7 @@ $progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
                                 <span class="list-item-text" style="flex: 1; <?php echo $item['purchased'] ? 'text-decoration: line-through; color: var(--text-3);' : ''; ?>"><?php echo htmlspecialchars($item['item_name']); ?></span>
                                 <span class="list-item-quantity" style="font-size: var(--text-sm); color: var(--text-2);"><?php echo htmlspecialchars($item['quantity']); ?></span>
                             </label>
-                            <button class="list-item-delete" aria-label="Delete <?php echo htmlspecialchars($item['item_name']); ?>" onclick="deleteShoppingItem(<?php echo (int)$item['item_id']; ?>)" title="Delete item">🗑</button>
+                            <button class=\"list-item-delete\" aria-label=\"Delete <?php echo htmlspecialchars($item['item_name']); ?>\" onclick=\"if(confirm('Delete \\\"<?php echo htmlspecialchars(str_replace('\"', '&quot;', $item['item_name']), ENT_QUOTES); ?>\\\" from your list?')) deleteShoppingItem(<?php echo (int)$item['item_id']; ?>)\" title=\"Delete item\">🗑</button>
                         </li>
                         <?php endforeach; ?>
                     </ul>
@@ -94,8 +94,16 @@ $progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
                 <?php endforeach; ?>
             </div>
             
+            <!-- Suggestions Section -->
+            <div class="mt-12 hidden" id="suggestionsSection">
+                <h3 style="margin-bottom: var(--sp-6);">💡 Meal Suggestions</h3>
+                <div class="grid-2" id="suggestionsContainer" style="gap: var(--sp-4);">
+                    <!-- Loaded via JavaScript -->
+                </div>
+            </div>
+            
             <!-- Add Custom Item -->
-            <div style="background: var(--overlay); border: 1px solid var(--border); border-radius: 12px; padding: var(--sp-6);">
+            <div style="background: var(--overlay); border: 1px solid var(--border); border-radius: 12px; padding: var(--sp-6); margin-top: var(--sp-8);">
                 <p style="font-size: var(--text-sm); color: var(--text-2); margin-bottom: var(--sp-4);">Not finding something? Add a custom item.</p>
                 <form style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-4);" class="custom-item-form" novalidate>
                     <input type="text" id="custom-item-name" placeholder="Item name" class="form-input" required aria-label="Custom item name">
@@ -134,6 +142,40 @@ $progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
                 }
             })
             .finally(() => { showLoader(false); });
+        }
+        
+        // Load meal suggestions on page load
+        document.addEventListener('DOMContentLoaded', loadMealSuggestions);
+        
+        function loadMealSuggestions() {
+            fetch('/api/search_api.php?q=&offset=0&sort=protein_high&limit=4', {
+                method: 'GET'
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.meals && data.meals.length > 0) {
+                    const section = document.getElementById('suggestionsSection');
+                    const container = document.getElementById('suggestionsContainer');
+                    
+                    container.innerHTML = data.meals.slice(0, 4).map((meal, index) => `
+                        <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: var(--sp-4);">
+                            <div style="font-size: 1.5rem; margin-bottom: var(--sp-2);">${escapeHtml(meal.meal_icon)}</div>
+                            <h4 style="margin-bottom: var(--sp-1);">${escapeHtml(meal.meal_name)}</h4>
+                            <p style="color: var(--text-2); font-size: var(--text-xs); margin-bottom: var(--sp-3);">${escapeHtml(meal.category_name)}</p>
+                            
+                            <div style="display: flex; gap: var(--sp-1); margin-bottom: var(--sp-3); font-size: var(--text-xs);">
+                                <span style="background: rgba(var(--primary-rgb, 59, 130, 246), 0.1); color: var(--primary); padding: 2px 6px; border-radius: 4px;">🔥 ${escapeHtml(meal.calories.toString())}</span>
+                                <span style="background: rgba(var(--accent-rgb, 168, 85, 247), 0.1); color: var(--accent); padding: 2px 6px; border-radius: 4px;">💪 ${escapeHtml(meal.proteins_g.toString())}g</span>
+                            </div>
+                            
+                            <button class="btn btn-primary btn-sm" onclick="addToShoppingList(${meal.meal_id})" style="width: 100%;">+ Add to List</button>
+                        </div>
+                    `).join('');
+                    
+                    section.classList.remove('hidden');
+                }
+            })
+            .catch(e => console.error('Error loading suggestions:', e));
         }
     </script>
 </body>

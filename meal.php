@@ -1,5 +1,6 @@
 <?php
-session_start();
+require_once __DIR__ . '/includes/session.php';
+secure_session_start();
 require_once 'includes/db_connect.php';
 require_once 'includes/auth_check.php';
 
@@ -86,8 +87,10 @@ $total_ratings = $avg_rating_row ? (int)$avg_rating_row['total_ratings'] : 0;
                     <svg viewBox="0 0 120 120" class="nutrition-ring" role="img" aria-label="Calorie breakdown: <?php echo $meal['calories']; ?> kcal with <?php echo $meal['proteins_g']; ?>g protein, <?php echo $meal['carbs_g']; ?>g carbs, <?php echo $meal['fats_g']; ?>g fats">
                         <title>Nutrition breakdown</title>
                         <circle cx="60" cy="60" r="50" fill="none" stroke="var(--elevated)" stroke-width="12"/>
+                        <?php if ($total_macros > 0): ?>
                         <circle cx="60" cy="60" r="50" fill="none" stroke="var(--accent)" stroke-width="12" stroke-dasharray="<?php echo ($meal['proteins_g']/$total_macros)*314; ?> 314" stroke-dashoffset="-78"/>
                         <circle cx="60" cy="60" r="50" fill="none" stroke="var(--primary)" stroke-width="12" stroke-dasharray="<?php echo ($meal['carbs_g']/$total_macros)*314; ?> 314" stroke-dashoffset="<?php echo -(78 + ($meal['proteins_g']/$total_macros)*314); ?>"/>
+                        <?php endif; ?>
                         <text x="60" y="58" text-anchor="middle" fill="var(--text-1)" font-size="18" font-weight="700"><?php echo $meal['calories']; ?></text>
                         <text x="60" y="74" text-anchor="middle" fill="var(--text-2)" font-size="10">kcal</text>
                     </svg>
@@ -234,7 +237,7 @@ $total_ratings = $avg_rating_row ? (int)$avg_rating_row['total_ratings'] : 0;
                                 <div style="font-size: var(--text-sm); color: var(--text-2);"><?php echo htmlspecialchars($source['source_type']); ?></div>
                             </div>
                             <div style="display: flex; gap: var(--sp-2);">
-                                <a href="<?php echo htmlspecialchars($source['recipe_url']); ?>" target="_blank" class="btn btn-secondary" style="text-decoration: none; white-space: nowrap;">View Recipe →</a>
+                                <a href="<?php echo htmlspecialchars($source['recipe_url']); ?>" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="text-decoration: none; white-space: nowrap;">View Recipe →</a>
                                 <button onclick="shareRecipe('<?php echo urlencode($source['recipe_url']); ?>', '<?php echo urlencode($source['source_name']); ?>')" class="btn btn-secondary" style="white-space: nowrap;">Share</button>
                             </div>
                         </div>

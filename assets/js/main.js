@@ -112,7 +112,18 @@ function showToast(message, type = 'success') {
 }
 
 // ========================================
-// SECTION 5: MODAL MANAGEMENT
+// SECTION 5: HTML ESCAPING UTILITY
+// ========================================
+
+function escapeHtml(unsafe) {
+    if (typeof unsafe !== 'string') return '';
+    const div = document.createElement('div');
+    div.textContent = unsafe;
+    return div.innerHTML;
+}
+
+// ========================================
+// SECTION 6: MODAL MANAGEMENT
 // ========================================
 
 function openModal(modalId) {

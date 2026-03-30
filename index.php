@@ -37,7 +37,7 @@ if (isset($_SESSION['user_id'])) {
             
             <div class="hero-button-group">
                 <a href="register.php" class="btn btn-primary" style="animation: pulse 2s ease-in-out infinite;">Start Planning Free →</a>
-                <button class="btn btn-outline" onclick="alert('Demo video coming soon!')">▶ Watch Demo</button>
+                <button class="btn btn-outline" disabled title="Demo video coming soon">▶ Watch Demo</button>
             </div>
             
             <!-- Social Proof -->

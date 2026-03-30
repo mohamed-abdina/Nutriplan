@@ -130,7 +130,11 @@ self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-shopping') {
     event.waitUntil(
       // Sync shopping list changes
-      fetch('/api/shopping_action.php', { method: 'POST' })
+      fetch('/api/shopping_action.php', { 
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'action=sync'
+      })
         .then(() => console.log('Shopping list synced'))
         .catch(err => console.error('Sync failed:', err))
     );

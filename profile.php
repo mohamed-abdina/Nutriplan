@@ -14,22 +14,26 @@ $update_error = '';
 $update_success = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
+    $csrf = $_POST['csrf_token'] ?? '';
+    if (!validate_csrf($csrf)) {
+        $update_error = 'Security error: Session expired. Please try again.';
+    } else {
+        $action = $_POST['action'] ?? '';
     
-    if ($action === 'update_profile') {
-        $first_name = sanitize_input($_POST['first_name'] ?? '');
-        $last_name = sanitize_input($_POST['last_name'] ?? '');
-        
-        if (!empty($first_name) && !empty($last_name)) {
-            $conn->query("UPDATE users SET first_name = '$first_name', last_name = '$last_name' WHERE user_id = $user_id");
-            $user['first_name'] = $first_name;
-            $user['last_name'] = $last_name;
-            $update_success = true;
+        if ($action === 'update_profile') {
+            $first_name = sanitize_input($_POST['first_name'] ?? '');
+            $last_name = sanitize_input($_POST['last_name'] ?? '');
+            
+            if (!empty($first_name) && !empty($last_name)) {
+                pdo_query("UPDATE users SET first_name = ?, last_name = ? WHERE user_id = ?", [$first_name, $last_name, $user_id]);
+                $update_success = true;
+            } else {
+                $update_error = 'First name and last name are required.';
+            }
         }
     }
 }
 
-// Get user stats
 $meals_info = pdo_fetch_one("SELECT COUNT(DISTINCT DATE(created_at)) as days, COUNT(*) as total FROM meals") ?? ['days' => 0, 'total' => 0];
 
 $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE user_id = ?", [$user_id]) ?? ['lists' => 0];
@@ -42,6 +46,8 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
     <title>Profile - NutriPlan</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="manifest" href="manifest.json">
+    <?php require_once __DIR__ . '/includes/csrf.php'; ?>
+    <script>window.CSRF_TOKEN = '<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8'); ?>';</script>
 </head>
 <body>
     <div class="app-shell">
@@ -80,6 +86,8 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
             <!-- Settings Tabs -->
             <div class="tab-button-group" role="tablist">
                 <button class="tab-btn tab-button active" data-tab="personal" role="tab" aria-selected="true" aria-controls="personal-panel" id="personal-tab">👤 Personal Info</button>
+                <button class="tab-btn tab-button" data-tab="favorites" role="tab" aria-selected="false" aria-controls="favorites-panel" id="favorites-tab">⭐ Favorites</button>
+                <button class="tab-btn tab-button" data-tab="analytics" role="tab" aria-selected="false" aria-controls="analytics-panel" id="analytics-tab">📊 Analytics</button>
                 <button class="tab-btn tab-button" data-tab="preferences" role="tab" aria-selected="false" aria-controls="preferences-panel" id="preferences-tab">⚙️ Preferences</button>
                 <button class="tab-btn tab-button" data-tab="security" role="tab" aria-selected="false" aria-controls="security-panel" id="security-tab">🔐 Security</button>
             </div>
@@ -95,6 +103,7 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
                     
                     <form method="POST">
                         <input type="hidden" name="action" value="update_profile">
+                        <?php echo csrf_field(); ?>
                         
                         <div class="form-grid-2">
                             <div class="field">
@@ -122,43 +131,111 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
                 </div>
             </div>
             
+            <!-- Favorites Tab -->
+            <div id="favorites-panel" role="tabpanel" aria-labelledby="favorites-tab" class="tab-panel hidden">
+                <div>
+                    <h3 style="margin-bottom: var(--sp-6);">⭐ Your Favorite Meals</h3>
+                    <div id="favoritesList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--sp-4);">
+                        <!-- Favorites will load here -->
+                    </div>
+                    <div id="noFavorites" class="hidden" style="text-align: center; padding: var(--sp-12); color: var(--text-2);">
+                        <div style="font-size: 3rem; margin-bottom: var(--sp-4);">💔</div>
+                        <p>No favorite meals yet. Rate meals as you try them!</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Analytics Tab -->
+            <div id="analytics-panel" role="tabpanel" aria-labelledby="analytics-tab" class="tab-panel hidden">
+                <div style="max-width: 100%;">
+                    <h3 style="margin-bottom: var(--sp-6);">📊 Your Nutrition Insights</h3>
+                    
+                    <!-- Weekly Stats -->
+                    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: var(--sp-6); margin-bottom: var(--sp-8);">
+                        <h4 style="margin-bottom: var(--sp-4);">📈 Weekly Overview</h4>
+                        <div id="weeklyChart" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--sp-2);">
+                            <!-- Chart will load here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Nutrition Trends -->
+                    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: var(--sp-6); margin-bottom: var(--sp-8);">
+                        <h4 style="margin-bottom: var(--sp-4);">💪 30-Day Nutrition Average</h4>
+                        <div id="nutritionTrends" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-4);">
+                            <!-- Trends will load here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Most Frequent Meals -->
+                    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: var(--sp-6); margin-bottom: var(--sp-8);">
+                        <h4 style="margin-bottom: var(--sp-4);">🔁 Your Go-To Meals</h4>
+                        <div id="frequentMeals" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--sp-4);">
+                            <!-- Meals will load here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Export Data -->
+                    <button class="btn btn-primary" onclick="exportMealData()" style="width: 100%;">📥 Export Meal History (CSV)</button>
+                </div>
+            </div>
+            
             <!-- Preferences Tab -->
             <div id="preferences-panel" role="tabpanel" aria-labelledby="preferences-tab" class="tab-panel hidden">
-                <div style="max-width: 500px;">
+                <div style="max-width: 600px;">
+                    <h3 style="margin-bottom: var(--sp-6);">🎯 Meal Preferences</h3>
+                    
                     <div id="preferences-content" style="background: var(--elevated); border-radius: 12px; padding: var(--sp-6);">
-                        <div class="field">
-                            <select id="portion-size" style="width: 100%; padding: var(--sp-3); background: var(--inset); border: 1px solid var(--border); border-radius: 8px; color: var(--text-1);">
-                                <option value="small">Small</option>
-                                <option value="normal" selected>Normal</option>
-                                <option value="large">Large</option>
-                                <option value="extra-large">Extra Large</option>
+                        <!-- Portion Size -->
+                        <div style="margin-bottom: var(--sp-6);">
+                            <label for="portion-size" style="font-size: var(--text-sm); font-weight: 600; color: var(--text-1); display: block; margin-bottom: var(--sp-3);">🍽️ Portion Size</label>
+                            <select id="portion-size" style="width: 100%; padding: var(--sp-3); background: var(--inset); border: 1px solid var(--border); border-radius: 8px; color: var(--text-1); cursor: pointer; font-size: var(--text-sm);">
+                                <option value="small">Small (300-500 cal)</option>
+                                <option value="normal">Normal (500-700 cal)</option>
+                                <option value="large">Large (700-900 cal)</option>
+                                <option value="extra-large">Extra Large (900+ cal)</option>
                             </select>
-                            <label style="display: block; margin-top: var(--sp-2);">Portion Size</label>
                         </div>
                         
-                        <div class="field" style="margin-top: var(--sp-4);">
-                            <input type="text" id="dietary-restrictions" placeholder="e.g., Vegetarian, Vegan, Gluten-free" style="width: 100%; padding: var(--sp-3); background: var(--inset); border: 1px solid var(--border); border-radius: 8px; color: var(--text-1);">
-                            <label style="display: block; margin-top: var(--sp-2);">Dietary Restrictions</label>
+                        <!-- Dietary Restrictions -->
+                        <div style="margin-bottom: var(--sp-6);">
+                            <label for="dietary-restrictions" style="font-size: var(--text-sm); font-weight: 600; color: var(--text-1); display: block; margin-bottom: var(--sp-3);">🥗 Dietary Restrictions</label>
+                            <textarea id="dietary-restrictions" placeholder="e.g., Vegetarian, Vegan, Gluten-free (comma-separated)" style="width: 100%; padding: var(--sp-3); background: var(--inset); border: 1px solid var(--border); border-radius: 8px; color: var(--text-1); font-family: inherit; resize: vertical; min-height: 80px;"></textarea>
                         </div>
                         
-                        <div class="field" style="margin-top: var(--sp-4);">
-                            <input type="text" id="allergies" placeholder="e.g., Peanuts, Shellfish, Dairy" style="width: 100%; padding: var(--sp-3); background: var(--inset); border: 1px solid var(--border); border-radius: 8px; color: var(--text-1);">
-                            <label style="display: block; margin-top: var(--sp-2);">Allergies</label>
+                        <!-- Allergies -->
+                        <div style="margin-bottom: var(--sp-6);">
+                            <label for="allergies" style="font-size: var(--text-sm); font-weight: 600; color: var(--text-1); display: block; margin-bottom: var(--sp-3);">⚠️ Allergies</label>
+                            <textarea id="allergies" placeholder="e.g., Peanuts, Shellfish, Dairy (comma-separated)" style="width: 100%; padding: var(--sp-3); background: var(--inset); border: 1px solid var(--border); border-radius: 8px; color: var(--text-1); font-family: inherit; resize: vertical; min-height: 80px;"></textarea>
                         </div>
                         
-                        <div class="field" style="margin-top: var(--sp-4);">
-                            <input type="text" id="preferred-cuisine" placeholder="e.g., African, Asian, Mediterranean" style="width: 100%; padding: var(--sp-3); background: var(--inset); border: 1px solid var(--border); border-radius: 8px; color: var(--text-1);">
-                            <label style="display: block; margin-top: var(--sp-2);">Preferred Cuisine</label>
+                        <!-- Preferred Cuisine -->
+                        <div style="margin-bottom: var(--sp-6);">
+                            <label for="preferred-cuisine" style="font-size: var(--text-sm); font-weight: 600; color: var(--text-1); display: block; margin-bottom: var(--sp-3);">🌍 Preferred Cuisines</label>
+                            <select id="preferred-cuisine" multiple style="width: 100%; padding: var(--sp-3); background: var(--inset); border: 1px solid var(--border); border-radius: 8px; color: var(--text-1); cursor: pointer; min-height: 120px;">
+                                <option value="african">African</option>
+                                <option value="asian">Asian</option>
+                                <option value="european">European</option>
+                                <option value="indian">Indian</option>
+                                <option value="italian">Italian</option>
+                                <option value="mediterranean">Mediterranean</option>
+                                <option value="mexican">Mexican</option>
+                                <option value="middle-eastern">Middle Eastern</option>
+                            </select>
+                            <small style="color: var(--text-2); margin-top: var(--sp-2); display: block;">Hold Ctrl/Cmd to select multiple</small>
                         </div>
                         
-                        <div style="margin-top: var(--sp-6);">
-                            <label style="display: flex; align-items: center; gap: var(--sp-2); cursor: pointer;">
-                                <input type="checkbox" id="notifications" checked style="width: 20px; height: 20px; cursor: pointer;">
-                                <span style="color: var(--text-1);">Enable Notifications</span>
+                        <!-- Notifications Toggle -->
+                        <div style="margin-bottom: var(--sp-6);">
+                            <label style="display: flex; align-items: center; gap: var(--sp-3); cursor: pointer; padding: var(--sp-3); background: var(--surface); border-radius: 8px;">
+                                <input type="checkbox" id="notifications" checked style="width: 18px; height: 18px; cursor: pointer;">
+                                <div>
+                                    <div style="color: var(--text-1); font-weight: 500;">🔔 Enable Notifications</div>
+                                    <small style="color: var(--text-2);">Get updates on new meal recommendations</small>
+                                </div>
                             </label>
                         </div>
                         
-                        <button class="btn btn-primary" onclick="savePreferences()" style="margin-top: var(--sp-6); width: 100%;">Save Preferences</button>
+                        <button class="btn btn-primary" onclick="savePreferences()" style="width: 100%;">💾 Save Preferences</button>
                     </div>
                 </div>
             </div>
@@ -207,31 +284,139 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
     
     <script src="assets/js/main.js" defer></script>
     <script>
-        // Load preferences on page load
-        window.addEventListener('load', loadPreferences);
-        
-        // Tab switching - update ARIA attributes
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const tabName = this.getAttribute('data-tab');
-                const tabPanel = document.getElementById(tabName + '-panel');
-                
-                // Hide all tab panels and update ARIA
-                document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
-                document.querySelectorAll('.tab-btn').forEach(b => {
-                    b.classList.remove('active');
-                    b.setAttribute('aria-selected', 'false');
+        // Load preferences and favorites on page load
+        window.addEventListener('load', () => {
+            loadPreferences();
+            // Add tab click listeners
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (btn.id === 'favorites-tab') {
+                        loadFavorites();
+                    } else if (btn.id === 'analytics-tab') {
+                        loadAnalytics();
+                    }
                 });
-                
-                // Show selected tab panel and update ARIA
-                if (tabPanel) {
-                    tabPanel.classList.remove('hidden');
-                    this.classList.add('active');
-                    this.setAttribute('aria-selected', 'true');
-                    this.focus();
-                }
             });
         });
+        
+        function loadFavorites() {
+            fetch('api/meal_ratings.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'action=get_favorites&limit=12'
+            })
+            .then(r => r.json())
+            .then(data => {
+                const list = document.getElementById('favoritesList');
+                const noFavorites = document.getElementById('noFavorites');
+                
+                if (data.success && data.favorites && data.favorites.length > 0) {
+                    list.innerHTML = data.favorites.map(meal => `
+                        <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: var(--sp-4); overflow: hidden;">
+                            <div style="font-size: 2rem; margin-bottom: var(--sp-2);">${escapeHtml(meal.meal_icon)}</div>
+                            <h4 style="margin-bottom: var(--sp-2);">${escapeHtml(meal.meal_name)}</h4>
+                            <p style="color: var(--text-2); font-size: var(--text-xs); margin-bottom: var(--sp-3);">${escapeHtml(meal.category_name)}</p>
+                            
+                            <div style="display: flex; gap: var(--sp-2); margin-bottom: var(--sp-3); flex-wrap: wrap;">
+                                <div style="background: rgba(var(--primary-rgb, 59, 130, 246), 0.1); padding: 4px 8px; border-radius: 6px; font-size: var(--text-xs); color: var(--primary); font-weight: 500;">
+                                    🔥 ${escapeHtml(meal.calories.toString())} cal
+                                </div>
+                                <div style="background: rgba(var(--accent-rgb, 168, 85, 247), 0.1); padding: 4px 8px; border-radius: 6px; font-size: var(--text-xs); color: var(--accent); font-weight: 500;">
+                                    💪 ${escapeHtml(meal.proteins_g.toString())}g
+                                </div>
+                            </div>
+                            
+                            ${meal.rating ? `<div style="color: var(--warning); font-size: var(--text-sm); margin-bottom: var(--sp-3);">⭐ Rating: ${escapeHtml(meal.rating.toString())}/5</div>` : ''}
+                            
+                            <div style="display: flex; gap: var(--sp-2);">
+                                <a href="meal.php?id=${meal.meal_id}" class="btn btn-outline btn-sm" style="flex: 1; text-align: center;">Details</a>
+                                <button class="btn btn-ghost btn-sm" onclick="addToShoppingList(${meal.meal_id})">+ Add</button>
+                            </div>
+                        </div>
+                    `).join('');
+                    noFavorites.classList.add('hidden');
+                } else {
+                    list.innerHTML = '';
+                    noFavorites.classList.remove('hidden');
+                }
+            })
+            .catch(e => {
+                console.error('Error loading favorites:', e);
+                showToast('Error loading favorites', 'error');
+            });
+        }
+        
+        function loadAnalytics() {
+            // Load weekly stats
+            Promise.all([
+                fetch('api/analytics.php?action=weekly_stats').then(r => r.json()),
+                fetch('api/analytics.php?action=nutrition_trends').then(r => r.json()),
+                fetch('api/analytics.php?action=meal_frequency').then(r => r.json())
+            ])
+            .then(([weeklyData, trendsData, frequencyData]) => {
+                // Weekly Chart
+                if (weeklyData.success && weeklyData.stats) {
+                    const chart = document.getElementById('weeklyChart');
+                    const maxCal = Math.max(...weeklyData.stats.map(s => s.calories || 1));
+                    
+                    chart.innerHTML = weeklyData.stats.map(day => {
+                        const height = (day.calories / maxCal * 100) || 0;
+                        return `
+                            <div style="text-align: center;">
+                                <div style="background: linear-gradient(to top, var(--primary), var(--primary)); width: 100%; height: ${Math.max(height, 5)}%; margin-bottom: 8px; border-radius: 4px; min-height: 20px;"></div>
+                                <div style="font-size: var(--text-xs); color: var(--text-2); margin-bottom: 4px;">${escapeHtml(day.day)}</div>
+                                <div style="font-size: var(--text-xs); font-weight: 600; color: var(--text-1);">${escapeHtml(day.calories.toString())} cal</div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+                
+                // Nutrition Trends
+                if (trendsData.success && trendsData.trends) {
+                    const t = trendsData.trends;
+                    const trends = document.getElementById('nutritionTrends');
+                    trends.innerHTML = `
+                        <div>
+                            <div style="font-size: var(--text-2xl); font-weight: 700; color: var(--warning);">${Math.round(t.avg_calories)}</div>
+                            <div style="font-size: var(--text-xs); color: var(--text-2);">Cal</div>
+                        </div>
+                        <div>
+                            <div style="font-size: var(--text-2xl); font-weight: 700; color: var(--accent);">${Math.round(t.avg_protein)}g</div>
+                            <div style="font-size: var(--text-xs); color: var(--text-2);">Protein</div>
+                        </div>
+                        <div>
+                            <div style="font-size: var(--text-2xl); font-weight: 700; color: var(--primary);">${Math.round(t.avg_carbs)}g</div>
+                            <div style="font-size: var(--text-xs); color: var(--text-2);">Carbs</div>
+                        </div>
+                        <div>
+                            <div style="font-size: var(--text-2xl); font-weight: 700; color: var(--success);">${Math.round(t.avg_fats)}g</div>
+                            <div style="font-size: var(--text-xs); color: var(--text-2);">Fats</div>
+                        </div>
+                    `;
+                }
+                
+                // Frequent Meals
+                if (frequencyData.success && frequencyData.meals) {
+                    const meals = document.getElementById('frequentMeals');
+                    meals.innerHTML = frequencyData.meals.map(meal => `
+                        <div style="background: var(--inset); border: 1px solid var(--border); border-radius: 12px; padding: var(--sp-3); text-align: center;">
+                            <div style="font-size: 2rem; margin-bottom: var(--sp-1);">${escapeHtml(meal.meal_icon)}</div>
+                            <h5 style="margin-bottom: var(--sp-1);">${escapeHtml(meal.meal_name)}</h5>
+                            <div style="font-size: var(--text-xs); color: var(--text-2); margin-bottom: var(--sp-2);">Added ${escapeHtml(meal.times_added.toString())} times</div>
+                            ${meal.avg_rating > 0 ? `<div style="color: var(--warning); font-size: var(--text-sm);">⭐ ${meal.avg_rating.toFixed(1)}/5</div>` : ''}
+                        </div>
+                    `).join('');
+                }
+            })
+            .catch(e => {
+                console.error('Error loading analytics:', e);
+                showToast('Error loading analytics', 'error');
+            });
+        }
+        
+        function exportMealData() {
+            window.location.href = 'api/analytics.php?action=export_data';
+        }
         
         function loadPreferences() {
             fetch('api/user_preferences.php', {
@@ -254,14 +439,18 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
         }
         
         function savePreferences() {
+            const cuisineSelect = document.getElementById('preferred-cuisine');
+            const selectedCuisines = Array.from(cuisineSelect.selectedOptions).map(opt => opt.value).join(',');
+            
             const formData = new URLSearchParams({
                 action: 'update',
                 portion_size: document.getElementById('portion-size').value,
                 dietary_restrictions: document.getElementById('dietary-restrictions').value,
                 allergies: document.getElementById('allergies').value,
-                preferred_cuisine: document.getElementById('preferred-cuisine').value,
+                preferred_cuisine: selectedCuisines,
                 notifications_enabled: document.getElementById('notifications').checked ? 1 : 0,
-                theme_preference: document.documentElement.getAttribute('data-theme') || 'dark'
+                theme_preference: document.documentElement.getAttribute('data-theme') || 'dark',
+                csrf_token: window.CSRF_TOKEN || ''
             });
             
             fetch('api/user_preferences.php', {
@@ -272,7 +461,7 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    showToast('Preferences saved successfully!', 'success');
+                    showToast('✓ Preferences saved!', 'success');
                 } else {
                     showToast('Error saving preferences', 'error');
                 }
@@ -288,11 +477,27 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
         });
         
         function confirmDelete() {
-            fetch('deregister.php', {method: 'POST'})
-                .then(() => {
+            const formData = new URLSearchParams({
+                csrf_token: window.CSRF_TOKEN || ''
+            });
+            fetch('deregister.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
                     showToast('Account deleted', 'success');
                     setTimeout(() => location.href = 'index.php', 1500);
-                });
+                } else {
+                    showToast(data.message || 'Error deleting account', 'error');
+                }
+            })
+            .catch(e => {
+                console.error('Error:', e);
+                showToast('Error deleting account', 'error');
+            });
         }
     </script>
 </body>

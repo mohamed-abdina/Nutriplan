@@ -127,15 +127,32 @@ elseif ($action === 'get_rating') {
 }
 
 elseif ($action === 'get_favorites') {
-    $rows = pdo_fetch_all("SELECT m.meal_id, m.meal_name, m.meal_icon, c.category_name, n.calories
+    $limit = isset($_POST['limit']) ? (int)$_POST['limit'] : 6;
+    $rows = pdo_fetch_all("SELECT m.meal_id, m.meal_name, m.meal_icon, c.category_name, n.calories, n.proteins_g, r.rating, r.is_favorite, r.review
         FROM meal_ratings r
         JOIN meals m ON r.meal_id = m.meal_id
         JOIN categories c ON m.category_id = c.category_id
         JOIN nutrition n ON m.meal_id = n.meal_id
         WHERE r.user_id = :user_id AND r.is_favorite = 1
-        ORDER BY r.updated_at DESC", [':user_id' => (int)$user_id]);
+        ORDER BY r.rating DESC, r.updated_at DESC
+        LIMIT :limit", [':user_id' => (int)$user_id, ':limit' => $limit]);
 
     echo json_encode(['success' => true, 'favorites' => $rows ?: []]);
+}
+
+elseif ($action === 'get_top_rated') {
+    $limit = isset($_POST['limit']) ? (int)$_POST['limit'] : 5;
+    $rows = pdo_fetch_all("SELECT m.meal_id, m.meal_name, m.meal_icon, c.category_name, n.calories, n.proteins_g, r.rating, COUNT(*) as times_rated
+        FROM meal_ratings r
+        JOIN meals m ON r.meal_id = m.meal_id
+        JOIN categories c ON m.category_id = c.category_id
+        JOIN nutrition n ON m.meal_id = n.meal_id
+        WHERE r.user_id = :user_id AND r.rating >= 4
+        GROUP BY r.meal_id
+        ORDER BY r.rating DESC, r.updated_at DESC
+        LIMIT :limit", [':user_id' => (int)$user_id, ':limit' => $limit]);
+
+    echo json_encode(['success' => true, 'top_rated' => $rows ?: []]);
 }
 
 else {
