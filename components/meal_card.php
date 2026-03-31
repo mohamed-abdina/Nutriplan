@@ -29,16 +29,16 @@ if ($protein > 25) {
                 <div class="card-title"><?php echo htmlspecialchars($meal['meal_name']); ?></div>
                 <span class="card-category"><?php echo htmlspecialchars($meal['category_name']); ?></span>
                 
-                <!-- Enhanced Nutrition Display -->
-                <div style="display: flex; gap: var(--sp-2); margin-top: var(--sp-2); flex-wrap: wrap;">
-                    <div style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; background: rgba(var(--primary-rgb, 59, 130, 246), 0.1); border-radius: 6px; font-size: var(--text-xs); color: var(--primary); font-weight: 500;">
+                <!-- Enhanced Nutrition Display - RESPONSIVE BADGES -->
+                <div class="card-badges">
+                    <div class="nutrition-badge badge-primary" title="<?php echo (int)$calories; ?> calories">
                         🔥 <?php echo htmlspecialchars((string)$calories); ?> cal
                     </div>
-                    <div style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; background: rgba(var(--accent-rgb, 168, 85, 247), 0.1); border-radius: 6px; font-size: var(--text-xs); color: var(--accent); font-weight: 500;">
-                        💪 <?php echo htmlspecialchars((string)$protein); ?>g protein
+                    <div class="nutrition-badge badge-accent" title="<?php echo (int)$protein; ?>g protein">
+                        💪 <?php echo htmlspecialchars((string)$protein); ?>g
                     </div>
                     <?php if ($nutrition_level): ?>
-                    <div style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; background: rgba(<?php echo htmlspecialchars($nutrition_color); ?>, 0.1); border-radius: 6px; font-size: var(--text-xs); color: <?php echo htmlspecialchars($nutrition_color); ?>; font-weight: 500;">
+                    <div class="nutrition-badge badge-level" style="--badge-color: <?php echo htmlspecialchars($nutrition_color); ?>;" title="<?php echo htmlspecialchars($nutrition_level); ?>">
                         ✨ <?php echo htmlspecialchars($nutrition_level); ?>
                     </div>
                     <?php endif; ?>
