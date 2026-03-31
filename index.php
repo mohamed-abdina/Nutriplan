@@ -40,19 +40,19 @@ if (isset($_SESSION['user_id'])) {
                 <button class="btn btn-outline" disabled title="Demo video coming soon">▶ Watch Demo</button>
             </div>
             
-            <!-- Social Proof -->
+            <!-- Features Summary -->
             <div class="social-proof-grid">
                 <div class="stagger-item">
-                    <div style="font-size: var(--text-3xl); font-weight: 700; color: var(--primary);" data-count="500">0</div>
-                    <div style="color: var(--text-2); font-size: var(--text-sm); margin-top: var(--sp-2);">Meals in Library</div>
+                    <div style="font-size: var(--text-3xl); font-weight: 700; color: var(--primary);">22</div>
+                    <div style="color: var(--text-2); font-size: var(--text-sm); margin-top: var(--sp-2);">Curated Meals</div>
                 </div>
                 <div class="stagger-item">
-                    <div style="font-size: var(--text-3xl); font-weight: 700; color: var(--success);" data-count="100">0</div>
-                    <div style="color: var(--text-2); font-size: var(--text-sm); margin-top: var(--sp-2);">% Waste Reduction</div>
+                    <div style="font-size: var(--text-3xl); font-weight: 700; color: var(--success);">✓</div>
+                    <div style="color: var(--text-2); font-size: var(--text-sm); margin-top: var(--sp-2);">PWA Enabled</div>
                 </div>
                 <div class="stagger-item">
-                    <div style="font-size: var(--text-3xl); font-weight: 700; color: var(--accent);" data-count="1000">0</div>
-                    <div style="color: var(--text-2); font-size: var(--text-sm); margin-top: var(--sp-2);">Active Users</div>
+                    <div style="font-size: var(--text-3xl); font-weight: 700; color: var(--accent);">Demo</div>
+                    <div style="color: var(--text-2); font-size: var(--text-sm); margin-top: var(--sp-2);">Academic Project</div>
                 </div>
             </div>
         </div>

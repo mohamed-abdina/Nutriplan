@@ -58,8 +58,33 @@ if ($action === 'add') {
     $meal_id = isset($_POST['meal_id']) ? (int)$_POST['meal_id'] : 0;
     
     if ($meal_id > 0) {
-        pdo_query("INSERT INTO shopping_items (list_id, meal_id, quantity) VALUES (:list_id, :meal_id, :qty)", [':list_id' => $list_id, ':meal_id' => $meal_id, ':qty' => '1 serving']);
-        echo json_encode(['success' => true, 'message' => 'Added to list']);
+        // Get meal details
+        $meal = pdo_fetch_one("SELECT meal_name FROM meals WHERE meal_id = ?", [$meal_id]);
+        if (!$meal) {
+            echo json_encode(['success' => false, 'message' => 'Meal not found']);
+            exit;
+        }
+        
+        // Get all ingredients for this meal
+        $ingredients = pdo_fetch_all(
+            "SELECT ingredient_name, quantity, unit FROM ingredients WHERE meal_id = ? ORDER BY ingredient_id", 
+            [$meal_id]
+        );
+        
+        if (!empty($ingredients)) {
+            // Add each ingredient as a separate shopping item
+            $stmtAddItem = $pdo->prepare("INSERT INTO shopping_items (list_id, meal_id, item_name, quantity, custom_item) VALUES (?, ?, ?, ?, 0)");
+            foreach ($ingredients as $ing) {
+                $quantity_display = $ing['quantity'] . ' ' . $ing['unit'];
+                $stmtAddItem->execute([$list_id, $meal_id, $ing['ingredient_name'], $quantity_display]);
+            }
+            echo json_encode(['success' => true, 'message' => "Added {$meal['meal_name']} and " . count($ingredients) . " ingredients to list"]);
+        } else {
+            // Fallback: just add the meal with a generic entry
+            pdo_query("INSERT INTO shopping_items (list_id, meal_id, item_name, quantity) VALUES (:list_id, :meal_id, :name, :qty)", 
+                [':list_id' => $list_id, ':meal_id' => $meal_id, ':name' => $meal['meal_name'], ':qty' => '1 serving']);
+            echo json_encode(['success' => true, 'message' => "Added {$meal['meal_name']} to list"]);
+        }
     } else {
         echo json_encode(['success' => false, 'message' => 'Invalid meal']);
     }

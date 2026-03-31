@@ -37,6 +37,12 @@ $sources = pdo_fetch_all("SELECT recipe_url, source_name, source_type FROM meal_
 $avg_rating_row = pdo_fetch_one("SELECT AVG(rating) as avg_rating, COUNT(*) as total_ratings FROM meal_ratings WHERE meal_id = ? AND rating > 0", [$meal_id]);
 $avg_rating = $avg_rating_row && $avg_rating_row['avg_rating'] ? round($avg_rating_row['avg_rating'], 1) : 0;
 $total_ratings = $avg_rating_row ? (int)$avg_rating_row['total_ratings'] : 0;
+
+// Get ingredients for this meal
+$ingredients = pdo_fetch_all("SELECT ingredient_id, ingredient_name, quantity, unit, notes FROM ingredients WHERE meal_id = ? ORDER BY ingredient_id ASC", [$meal_id]) ?? [];
+
+// Get preparation steps for this meal
+$prep_steps = pdo_fetch_all("SELECT step_number, step_description, duration_minutes FROM meal_preparation_steps WHERE meal_id = ? ORDER BY step_number ASC", [$meal_id]) ?? [];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -47,7 +53,7 @@ $total_ratings = $avg_rating_row ? (int)$avg_rating_row['total_ratings'] : 0;
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="manifest" href="manifest.json">
     <?php require_once __DIR__ . '/includes/csrf.php'; ?>
-    <script>window.CSRF_TOKEN = '<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8'); ?>';</script>
+    <meta name="csrf-token" content="<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
 </head>
 <body>
     <div class="app-shell">
@@ -132,21 +138,19 @@ $total_ratings = $avg_rating_row ? (int)$avg_rating_row['total_ratings'] : 0;
                 
                 <!-- Ingredients Tab -->
                 <div id="ingredients-panel" role="tabpanel" aria-labelledby="ingredients-tab" class="tab-panel active">
-                    <p style="color: var(--text-2); margin-bottom: var(--sp-4);">Typical ingredients for this meal. Adjust quantities based on serving size.</p>
+                    <p style="color: var(--text-2); margin-bottom: var(--sp-4);">Ingredients needed for this meal. Adjust quantities based on serving size.</p>
+                    <?php if (!empty($ingredients)): ?>
                     <ul style="list-style: none;">
+                        <?php foreach ($ingredients as $ing): ?>
                         <li style="padding: var(--sp-3) 0; border-bottom: 1px solid var(--border);">
-                            <span style="color: var(--text-1); font-weight: 500;">Main ingredient</span>
-                            <span style="float: right; color: var(--text-2);">varies</span>
+                            <span style="color: var(--text-1); font-weight: 500;"><?php echo htmlspecialchars($ing['ingredient_name']); ?></span>
+                            <span style="float: right; color: var(--text-2);"><?php echo htmlspecialchars($ing['quantity'] . ' ' . $ing['unit']); ?></span>
                         </li>
-                        <li style="padding: var(--sp-3) 0; border-bottom: 1px solid var(--border);">
-                            <span style="color: var(--text-1); font-weight: 500;">Seasoning</span>
-                            <span style="float: right; color: var(--text-2);">to taste</span>
-                        </li>
-                        <li style="padding: var(--sp-3) 0;">
-                            <span style="color: var(--text-1); font-weight: 500;">Optional extras</span>
-                            <span style="float: right; color: var(--text-2);">varies</span>
-                        </li>
+                        <?php endforeach; ?>
                     </ul>
+                    <?php else: ?>
+                    <p style="color: var(--text-2);">Ingredient list not available. Please refer to recipe sources.</p>
+                    <?php endif; ?>
                 </div>
                 
                 <!-- Nutrition Tab -->
@@ -185,20 +189,20 @@ $total_ratings = $avg_rating_row ? (int)$avg_rating_row['total_ratings'] : 0;
                 
                 <!-- Preparation Tab -->
                 <div id="preparation-panel" role="tabpanel" aria-labelledby="preparation-tab" class="tab-panel hidden">
+                    <?php if (!empty($prep_steps)): ?>
                     <ol style="list-style: decimal; padding-left: var(--sp-6);">
+                        <?php foreach ($prep_steps as $step): ?>
                         <li style="margin-bottom: var(--sp-4); color: var(--text-1);">
-                            <span style="font-weight: 500;">Prepare ingredients</span>
-                            <p style="color: var(--text-2); font-size: var(--text-sm); margin-top: var(--sp-1);">Wash and cut all ingredients according to recipe requirements.</p>
+                            <span style="font-weight: 500;"><?php echo htmlspecialchars($step['step_description']); ?></span>
+                            <?php if ($step['duration_minutes'] > 0): ?>
+                            <p style="color: var(--text-2); font-size: var(--text-sm); margin-top: var(--sp-1);">⏱️ <?php echo intval($step['duration_minutes']); ?> minutes</p>
+                            <?php endif; ?>
                         </li>
-                        <li style="margin-bottom: var(--sp-4); color: var(--text-1);">
-                            <span style="font-weight: 500;">Cook</span>
-                            <p style="color: var(--text-2); font-size: var(--text-sm); margin-top: var(--sp-1);">Heat your cooking medium and begin cooking. Follow traditional preparation methods.</p>
-                        </li>
-                        <li style="color: var(--text-1);">
-                            <span style="font-weight: 500;">Season and serve</span>
-                            <p style="color: var(--text-2); font-size: var(--text-sm); margin-top: var(--sp-1);">Add seasonings to taste and serve hot while fresh.</p>
-                        </li>
+                        <?php endforeach; ?>
                     </ol>
+                    <?php else: ?>
+                    <p style="color: var(--text-2);">Detailed preparation steps not available. Please refer to recipe sources.</p>
+                    <?php endif; ?>
                 </div>
                 
                 <!-- Ratings Tab -->
@@ -275,7 +279,7 @@ $total_ratings = $avg_rating_row ? (int)$avg_rating_row['total_ratings'] : 0;
             fetch('api/meal_ratings.php', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `action=rate&meal_id=${mealId}&rating=${currentRating}&review=${encodeURIComponent(review)}&csrf_token=${encodeURIComponent(window.CSRF_TOKEN || '')}`
+                body: `action=rate&meal_id=${mealId}&rating=${currentRating}&review=${encodeURIComponent(review)}&csrf_token=${encodeURIComponent(document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '')}`
             })
             .then(r => r.json())
             .then(data => {
@@ -293,7 +297,7 @@ $total_ratings = $avg_rating_row ? (int)$avg_rating_row['total_ratings'] : 0;
             fetch('api/meal_ratings.php', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `action=toggle_favorite&meal_id=${mealId}&csrf_token=${encodeURIComponent(window.CSRF_TOKEN || '')}`
+                body: `action=toggle_favorite&meal_id=${mealId}&csrf_token=${encodeURIComponent(document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '')}`
             })
             .then(r => r.json())
             .then(data => {

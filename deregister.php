@@ -23,23 +23,25 @@ if (!validate_csrf($csrf_token)) {
 
 $user_id = $_SESSION['user_id'];
 
-// Use PDO prepared statements for all deletions
+// Use PDO prepared statements and rely on CASCADE constraints for safety
 try {
 	$pdo->beginTransaction();
-	// Delete shopping items
-	$stmt = $pdo->prepare("DELETE FROM shopping_items WHERE list_id IN (SELECT list_id FROM shopping_lists WHERE user_id = :user_id)");
-	$stmt->execute([':user_id' => $user_id]);
-	// Delete shopping lists
-	$stmt = $pdo->prepare("DELETE FROM shopping_lists WHERE user_id = :user_id");
-	$stmt->execute([':user_id' => $user_id]);
-	// Delete user
+	
+	// Delete user - all related data will cascade delete due to foreign key constraints:
+	// - meal_ratings (ON DELETE CASCADE)
+	// - user_preferences (ON DELETE CASCADE)
+	// - shopping_lists (ON DELETE CASCADE)
+	//   - shopping_items (ON DELETE CASCADE)
+	// - meal_planning (ON DELETE CASCADE)
 	$stmt = $pdo->prepare("DELETE FROM users WHERE user_id = :user_id");
 	$stmt->execute([':user_id' => $user_id]);
+	
 	$pdo->commit();
 	session_destroy();
 	echo json_encode(['success' => true, 'message' => 'Account deleted']);
 } catch (Exception $e) {
 	$pdo->rollBack();
+	error_log('Account deletion error: ' . $e->getMessage());
 	http_response_code(500);
 	echo json_encode(['success' => false, 'message' => 'Account deletion failed.']);
 }

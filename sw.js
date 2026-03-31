@@ -4,14 +4,14 @@ const STATIC_ASSETS = [
   '/',
   '/index.php',
   '/register.php',
-  '/dashboard.php',
-  '/search.php',
-  '/shopping.php',
-  '/profile.php',
   '/assets/css/style.css',
   '/assets/js/main.js',
   '/manifest.json'
 ];
+
+// Note: Dashboard, Search, Shopping, Meal, Profile pages require authentication
+// and session state, so they are NOT cached as static assets to prevent
+// showing stale authenticated pages to unauthenticated users.
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {

@@ -18,10 +18,11 @@ if ($list) {
 
 // Get items grouped by category
 $sql = "SELECT si.item_id, si.item_name, si.quantity, si.purchased, si.custom_item, 
-        c.category_name, c.category_id
+        si.meal_id, m.meal_name, m.category_id,
+        c.category_name
         FROM shopping_items si
         LEFT JOIN meals m ON si.meal_id = m.meal_id
-        LEFT JOIN categories c ON m.category_id = c.category_id
+        LEFT JOIN categories c ON m.category_id = c.category_id OR si.custom_item = TRUE
         WHERE si.list_id = ?
         ORDER BY si.purchased ASC, COALESCE(c.category_id, 999), si.item_name";
 
@@ -31,7 +32,12 @@ $total_items = 0;
 $purchased = 0;
 
 foreach ($fetched as $row) {
-    $cat = $row['category_name'] ?? 'Other';
+    // Determine category - prioritize meal category
+    $cat = $row['category_name'];
+    if (empty($cat)) {
+        $cat = 'Other';
+    }
+    
     if (!isset($items_by_category[$cat])) {
         $items_by_category[$cat] = [];
     }
@@ -51,7 +57,7 @@ $progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="manifest" href="manifest.json">
     <?php require_once __DIR__ . '/includes/csrf.php'; ?>
-    <script>window.CSRF_TOKEN = '<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8'); ?>';</script>
+    <meta name="csrf-token" content="<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
 </head>
 <body>
     <div class="app-shell">
@@ -129,7 +135,7 @@ $progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
             fetch('/api/shopping_action.php', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `action=add_custom&name=${encodeURIComponent(name)}&qty=${encodeURIComponent(qty)}&csrf_token=${encodeURIComponent(window.CSRF_TOKEN || '')}`
+                body: `action=add_custom&name=${encodeURIComponent(name)}&qty=${encodeURIComponent(qty)}&csrf_token=${encodeURIComponent(document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '')}`
             })
             .then(r => r.json())
             .then(data => {

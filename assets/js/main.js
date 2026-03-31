@@ -4,6 +4,19 @@
    ======================================== */
 
 // ========================================
+// SECTION 0: CSRF TOKEN HELPER
+// ========================================
+
+/**
+ * Safely retrieve CSRF token from meta tag
+ * @returns {string} CSRF token or empty string if not found
+ */
+function getCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+}
+
+// ========================================
 // SECTION 1: INITIALIZATION
 // ========================================
 
@@ -313,7 +326,7 @@ document.addEventListener('click', (e) => {
 async function addToShoppingList(mealId) {
     try {
         showLoader(true);
-        const csrf = window.CSRF_TOKEN || '';
+        const csrf = getCsrfToken();
         const response = await fetch('/api/shopping_action.php', {
             method: 'POST',
             headers: {
@@ -354,7 +367,7 @@ async function addToShoppingList(mealId) {
 async function toggleShoppingItem(itemId) {
     try {
         showLoader(true);
-        const csrf = window.CSRF_TOKEN || '';
+        const csrf = getCsrfToken();
         const response = await fetch('/api/shopping_action.php', {
             method: 'POST',
             headers: {
@@ -399,7 +412,7 @@ async function deleteShoppingItem(itemId) {
     if (confirm('Delete this item?')) {
         try {
             showLoader(true);
-            const csrf = window.CSRF_TOKEN || '';
+            const csrf = getCsrfToken();
             const response = await fetch('/api/shopping_action.php', {
                 method: 'POST',
                 headers: {

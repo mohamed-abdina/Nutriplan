@@ -39,34 +39,23 @@ function get_greeting() {
  *  3. Default for containerized setup -> 'db'
  */
 function get_db_host() {
-    $envHost = $_ENV['MYSQL_HOST'] ?? ($_ENV['DB_HOST'] ?? null);
-    if (!empty($envHost)) return $envHost;
-
-    if (php_sapi_name() === 'cli' || PHP_SAPI === 'cli') {
-        return '127.0.0.1';
-    }
-
-    if (!empty($_SERVER['HTTP_HOST'])) {
-        $hostHeader = $_SERVER['HTTP_HOST'];
-        if (strpos($hostHeader, 'localhost') !== false || strpos($hostHeader, '127.0.0.1') !== false) {
-            return '127.0.0.1';
-        }
-    }
-
-    return 'db';
+    // Rely exclusively on environment configuration
+    // This is more predictable and explicit than trying to detect environment from HTTP_HOST or file presence
+    return $_ENV['MYSQL_HOST'] ?? ($_ENV['DB_HOST'] ?? 'db');
 }
 
 function get_today_meals(&$conn, $user_id) {
     $today = date('Y-m-d');
     $sql = "SELECT m.meal_id, m.meal_name, m.meal_icon, m.category_id, c.category_name, 
-            n.calories, n.proteins_g, n.carbs_g, n.fats_g, n.fiber_g
-            FROM meals m
+            n.calories, n.proteins_g, n.carbs_g, n.fats_g, n.fiber_g, mp.meal_type
+            FROM meal_planning mp
+            JOIN meals m ON mp.meal_id = m.meal_id
             JOIN categories c ON m.category_id = c.category_id
             JOIN nutrition n ON m.meal_id = n.meal_id
-            WHERE DATE(m.created_at) = :today
-            ORDER BY c.category_id ASC";
+            WHERE mp.user_id = :user_id AND mp.planned_date = :today
+            ORDER BY FIELD(mp.meal_type, 'breakfast', 'lunch', 'snack', 'dinner') ASC";
 
-    $rows = pdo_fetch_all($sql, [':today' => $today]);
+    $rows = pdo_fetch_all($sql, [':user_id' => (int)$user_id, ':today' => $today]);
     return $rows === false ? [] : $rows;
 }
 

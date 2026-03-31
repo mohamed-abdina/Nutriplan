@@ -30,6 +30,35 @@ $max_cal = isset($_GET['max_cal']) ? max(0, (int)$_GET['max_cal']) : 10000;
 $min_protein = isset($_GET['min_protein']) ? max(0, (int)$_GET['min_protein']) : 0;
 $max_protein = isset($_GET['max_protein']) ? max(0, (int)$_GET['max_protein']) : 1000;
 
+// Enforce input length limits to prevent DoS attacks
+$max_query_length = 200;
+$max_sort_length = 50;
+$max_offset = 1000;
+
+if (strlen($query) > $max_query_length) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Search query too long (max 200 characters)']);
+    exit;
+}
+
+if (strlen($sort) > $max_sort_length) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid sort parameter']);
+    exit;
+}
+
+if ($offset > $max_offset) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Offset too large']);
+    exit;
+}
+
+// Validate and constrain numeric ranges
+$min_cal = min($min_cal, 5000);
+$max_cal = max($min_cal, min($max_cal, 5000));
+$min_protein = min($min_protein, 1000);
+$max_protein = max($min_protein, min($max_protein, 1000));
+
 // Log API call
 $error_logger->log_api_call('search_api', 'GET', ['query' => $query, 'category' => $category, 'offset' => $offset], 200);
 

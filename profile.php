@@ -47,7 +47,7 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="manifest" href="manifest.json">
     <?php require_once __DIR__ . '/includes/csrf.php'; ?>
-    <script>window.CSRF_TOKEN = '<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8'); ?>';</script>
+    <meta name="csrf-token" content="<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
 </head>
 <body>
     <div class="app-shell">
@@ -152,9 +152,9 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
                     
                     <!-- Weekly Stats -->
                     <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: var(--sp-6); margin-bottom: var(--sp-8);">
-                        <h4 style="margin-bottom: var(--sp-4);">📈 Weekly Overview</h4>
-                        <div id="weeklyChart" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--sp-2);">
-                            <!-- Chart will load here -->
+                        <h4 style="margin-bottom: var(--sp-4);">📈 Weekly Calorie Intake</h4>
+                        <div id="weeklyChart" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--sp-2); height: 200px; align-items: flex-end;">
+                            <!-- Chart bars will load here -->
                         </div>
                     </div>
                     
@@ -357,15 +357,15 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
                 // Weekly Chart
                 if (weeklyData.success && weeklyData.stats) {
                     const chart = document.getElementById('weeklyChart');
-                    const maxCal = Math.max(...weeklyData.stats.map(s => s.calories || 1));
+                    const maxCal = Math.max(...weeklyData.stats.map(s => s.calories || 1), 1);
                     
                     chart.innerHTML = weeklyData.stats.map(day => {
-                        const height = (day.calories / maxCal * 100) || 0;
+                        const heightPercent = (day.calories / maxCal * 100) || 0;
                         return `
-                            <div style="text-align: center;">
-                                <div style="background: linear-gradient(to top, var(--primary), var(--primary)); width: 100%; height: ${Math.max(height, 5)}%; margin-bottom: 8px; border-radius: 4px; min-height: 20px;"></div>
-                                <div style="font-size: var(--text-xs); color: var(--text-2); margin-bottom: 4px;">${escapeHtml(day.day)}</div>
-                                <div style="font-size: var(--text-xs); font-weight: 600; color: var(--text-1);">${escapeHtml(day.calories.toString())} cal</div>
+                            <div style="display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; height: 100%;">
+                                <div style="background: linear-gradient(to top, var(--primary), var(--primary)); width: 100%; height: ${heightPercent}%; border-radius: 4px; min-height: 20px; transition: all 0.3s ease;"></div>
+                                <div style="font-size: var(--text-xs); color: var(--text-2);">${escapeHtml(day.day)}</div>
+                                <div style="font-size: var(--text-xs); font-weight: 600; color: var(--text-1);">${(day.calories).toLocaleString()}</div>
                             </div>
                         `;
                     }).join('');
@@ -378,19 +378,19 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
                     trends.innerHTML = `
                         <div>
                             <div style="font-size: var(--text-2xl); font-weight: 700; color: var(--warning);">${Math.round(t.avg_calories)}</div>
-                            <div style="font-size: var(--text-xs); color: var(--text-2);">Cal</div>
+                            <div style="font-size: var(--text-xs); color: var(--text-2);">Avg Calories</div>
                         </div>
                         <div>
                             <div style="font-size: var(--text-2xl); font-weight: 700; color: var(--accent);">${Math.round(t.avg_protein)}g</div>
-                            <div style="font-size: var(--text-xs); color: var(--text-2);">Protein</div>
+                            <div style="font-size: var(--text-xs); color: var(--text-2);">Avg Protein</div>
                         </div>
                         <div>
                             <div style="font-size: var(--text-2xl); font-weight: 700; color: var(--primary);">${Math.round(t.avg_carbs)}g</div>
-                            <div style="font-size: var(--text-xs); color: var(--text-2);">Carbs</div>
+                            <div style="font-size: var(--text-xs); color: var(--text-2);">Avg Carbs</div>
                         </div>
                         <div>
                             <div style="font-size: var(--text-2xl); font-weight: 700; color: var(--success);">${Math.round(t.avg_fats)}g</div>
-                            <div style="font-size: var(--text-xs); color: var(--text-2);">Fats</div>
+                            <div style="font-size: var(--text-xs); color: var(--text-2);">Avg Fats</div>
                         </div>
                     `;
                 }
@@ -450,7 +450,7 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
                 preferred_cuisine: selectedCuisines,
                 notifications_enabled: document.getElementById('notifications').checked ? 1 : 0,
                 theme_preference: document.documentElement.getAttribute('data-theme') || 'dark',
-                csrf_token: window.CSRF_TOKEN || ''
+                csrf_token: getCsrfToken()
             });
             
             fetch('api/user_preferences.php', {
@@ -478,7 +478,7 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
         
         function confirmDelete() {
             const formData = new URLSearchParams({
-                csrf_token: window.CSRF_TOKEN || ''
+                csrf_token: getCsrfToken()
             });
             fetch('deregister.php', {
                 method: 'POST',
