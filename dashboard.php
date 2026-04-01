@@ -175,7 +175,7 @@ $nutrition_score = $total_protein > 30 && $total_calories > 500 ? 85 : 60;
         }
         
         function loadYouLoveMeals() {
-            fetch('api/meal_ratings.php', {
+            fetch(apiUrl('api/meal_ratings.php'), {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                 body: 'action=get_top_rated&limit=6'

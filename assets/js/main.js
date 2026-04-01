@@ -16,6 +16,18 @@ function getCsrfToken() {
     return meta ? meta.getAttribute('content') : '';
 }
 
+/**
+ * Build a root-relative URL for API endpoints so fetch calls resolve
+ * correctly on any server where the document root is the repo root.
+ * Accepts paths with or without a leading slash and normalises them.
+ *
+ * @param {string} path - API path e.g. 'api/search_api.php'
+ * @returns {string} Root-relative URL e.g. '/api/search_api.php'
+ */
+function apiUrl(path) {
+    return '/' + path.replace(/^\/+/, '');
+}
+
 // ========================================
 // SECTION 1: INITIALIZATION
 // ========================================
@@ -488,7 +500,7 @@ async function addToShoppingList(mealId) {
     try {
         showLoader(true);
         const csrf = getCsrfToken();
-        const response = await fetch('/api/shopping_action.php', {
+        const response = await fetch(apiUrl('api/shopping_action.php'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
@@ -529,7 +541,7 @@ async function toggleShoppingItem(itemId) {
     try {
         showLoader(true);
         const csrf = getCsrfToken();
-        const response = await fetch('/api/shopping_action.php', {
+        const response = await fetch(apiUrl('api/shopping_action.php'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
@@ -574,7 +586,7 @@ async function deleteShoppingItem(itemId) {
         try {
             showLoader(true);
             const csrf = getCsrfToken();
-            const response = await fetch('/api/shopping_action.php', {
+            const response = await fetch(apiUrl('api/shopping_action.php'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
@@ -674,7 +686,7 @@ async function handleAvatarUpload(file) {
     formData.append('avatar', file);
     
     try {
-        const response = await fetch('/api/upload_avatar.php', {
+        const response = await fetch(apiUrl('api/upload_avatar.php'), {
             method: 'POST',
             body: formData
         });
@@ -720,7 +732,7 @@ async function checkUsernameAvailability(username) {
     clearTimeout(usernameCheckTimeout);
     usernameCheckTimeout = setTimeout(async () => {
         try {
-            const response = await fetch(`/api/check_username.php?username=${username}`);
+            const response = await fetch(`${apiUrl('api/check_username.php')}?username=${username}`);
             
             const contentType = response.headers.get('content-type') || '';
             if (!contentType.includes('application/json')) {

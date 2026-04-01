@@ -276,7 +276,7 @@ $prep_steps = pdo_fetch_all("SELECT step_number, step_description, duration_minu
             
             const review = document.getElementById('review-text').value;
             
-            fetch('api/meal_ratings.php', {
+            fetch(apiUrl('api/meal_ratings.php'), {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                 body: `action=rate&meal_id=${mealId}&rating=${currentRating}&review=${encodeURIComponent(review)}&csrf_token=${encodeURIComponent(document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '')}`
@@ -294,7 +294,7 @@ $prep_steps = pdo_fetch_all("SELECT step_number, step_description, duration_minu
         }
         
         function toggleFavorite(mealId) {
-            fetch('api/meal_ratings.php', {
+            fetch(apiUrl('api/meal_ratings.php'), {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                 body: `action=toggle_favorite&meal_id=${mealId}&csrf_token=${encodeURIComponent(document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '')}`

@@ -470,7 +470,7 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
                     max_protein: maxProtein
                 });
 
-                   const requestUrl = `/api/search_api.php?${params}`;
+                   const requestUrl = `${apiUrl('api/search_api.php')}?${params}`;
                    searchDebugState.lastRequestUrl = requestUrl;
                    searchDebug('Issuing search API request', {
                        requestId,

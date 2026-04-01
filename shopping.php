@@ -132,7 +132,7 @@ $progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
                 return;
             }
             showLoader(true);
-            fetch('/api/shopping_action.php', {
+            fetch(apiUrl('api/shopping_action.php'), {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                 body: `action=add_custom&name=${encodeURIComponent(name)}&qty=${encodeURIComponent(qty)}&csrf_token=${encodeURIComponent(document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '')}`
@@ -155,7 +155,7 @@ $progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
         document.addEventListener('DOMContentLoaded', loadMealSuggestions);
         
         function loadMealSuggestions() {
-            fetch('/api/search_api.php?q=&offset=0&sort=protein_high&limit=4', {
+            fetch(`${apiUrl('api/search_api.php')}?q=&offset=0&sort=protein_high&limit=4`, {
                 method: 'GET'
             })
             .then(r => r.json())

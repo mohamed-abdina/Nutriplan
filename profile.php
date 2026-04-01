@@ -375,7 +375,7 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
                 csrf_token: getCsrfToken()
             });
             
-            fetch('api/meal_ratings.php', {
+            fetch(apiUrl('api/meal_ratings.php'), {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                 body: formData
@@ -424,9 +424,9 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
         function loadAnalytics() {
             // Load weekly stats
             Promise.all([
-                fetch('api/analytics.php?action=weekly_stats').then(r => r.json()),
-                fetch('api/analytics.php?action=nutrition_trends').then(r => r.json()),
-                fetch('api/analytics.php?action=meal_frequency').then(r => r.json())
+                fetch(`${apiUrl('api/analytics.php')}?action=weekly_stats`).then(r => r.json()),
+                fetch(`${apiUrl('api/analytics.php')}?action=nutrition_trends`).then(r => r.json()),
+                fetch(`${apiUrl('api/analytics.php')}?action=meal_frequency`).then(r => r.json())
             ])
             .then(([weeklyData, trendsData, frequencyData]) => {
                 // Weekly Chart
@@ -490,7 +490,7 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
         }
         
         function exportMealData() {
-            window.location.href = 'api/analytics.php?action=export_data';
+            window.location.href = apiUrl('api/analytics.php') + '?action=export_data';
         }
         
         function loadPreferences() {
@@ -499,7 +499,7 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
                 csrf_token: getCsrfToken()
             });
             
-            fetch('api/user_preferences.php', {
+            fetch(apiUrl('api/user_preferences.php'), {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                 body: formData
@@ -533,7 +533,7 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
                 csrf_token: getCsrfToken()
             });
             
-            fetch('api/user_preferences.php', {
+            fetch(apiUrl('api/user_preferences.php'), {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                 body: formData
