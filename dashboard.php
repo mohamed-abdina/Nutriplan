@@ -158,6 +158,21 @@ $nutrition_score = $total_protein > 30 && $total_calories > 500 ? 85 : 60;
             animateCounters();
             loadYouLoveMeals();
         });
+
+        function normalizeMealIcon(icon, categoryName = '') {
+            const raw = String(icon || '').trim();
+            const category = String(categoryName || '').toLowerCase();
+
+            if (!raw || /^[a-z0-9\-\_\s]+$/i.test(raw)) {
+                if (category.includes('breakfast')) return '🍳';
+                if (category.includes('lunch')) return '🥗';
+                if (category.includes('dinner') || category.includes('supper')) return '🍽️';
+                if (category.includes('snack')) return '🥜';
+                return '🍽️';
+            }
+
+            return raw;
+        }
         
         function loadYouLoveMeals() {
             fetch('api/meal_ratings.php', {
@@ -171,33 +186,12 @@ $nutrition_score = $total_protein > 30 && $total_calories > 500 ? 85 : 60;
                     const section = document.getElementById('youLoveSection');
                     const container = document.getElementById('youLoveContainer');
                     
-                    container.innerHTML = data.top_rated.map((meal, index) => `
-                        <article class="meal-card stagger-item" style="--card-accent: var(--accent); animation-delay: ${index * 60}ms">
-                            <div class="card-accent-strip"></div>
-                            <div class="card-body">
-                                <div style="display: flex; gap: var(--sp-3); width: 100%;">
-                                    <div class="card-icon">${escapeHtml(meal.meal_icon)}</div>
-                                    <div style="flex: 1; min-width: 0;">
-                                        <div class="card-title">${escapeHtml(meal.meal_name)}</div>
-                                        <span class="card-category">${escapeHtml(meal.category_name)}</span>
-                                        
-                                        <div style="display: flex; gap: var(--sp-2); margin-top: var(--sp-2); flex-wrap: wrap;">
-                                            <div style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; background: rgba(var(--warning-rgb, 226, 185, 6), 0.1); border-radius: 6px; font-size: var(--text-xs); color: var(--warning); font-weight: 500;">
-                                                ⭐ ${escapeHtml(meal.rating.toString())}/5
-                                            </div>
-                                            <div style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; background: rgba(var(--accent-rgb, 168, 85, 247), 0.1); border-radius: 6px; font-size: var(--text-xs); color: var(--accent); font-weight: 500;">
-                                                💪 ${escapeHtml(meal.proteins_g.toString())}g
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="card-actions">
-                                <button class="btn-ghost btn-sm" onclick="addToShoppingList(${meal.meal_id})">+ Add</button>
-                                <a href="meal.php?id=${meal.meal_id}" class="btn-outline btn-sm">Details →</a>
-                            </div>
-                        </article>
-                    `).join('');
+                    container.innerHTML = data.top_rated.map((meal, index) => 
+                        generateMealCardHtml(meal, { 
+                            animation_delay: index,
+                            card_accent_override: 'var(--accent)'
+                        })
+                    ).join('');
                     
                     section.classList.remove('hidden');
                 }

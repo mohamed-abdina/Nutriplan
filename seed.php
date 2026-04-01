@@ -199,6 +199,11 @@ execSql($pdo, "CREATE TABLE IF NOT EXISTS meal_sources (
     FOREIGN KEY (meal_id) REFERENCES meals(meal_id) ON DELETE CASCADE
 )", "MEAL_SOURCES table created or exists");
 
+// Create performance indexes for search filters
+execSql($pdo, "ALTER TABLE nutrition ADD INDEX IF NOT EXISTS idx_calories (calories)", "Index on nutrition.calories created");
+execSql($pdo, "ALTER TABLE nutrition ADD INDEX IF NOT EXISTS idx_proteins_g (proteins_g)", "Index on nutrition.proteins_g created");
+execSql($pdo, "ALTER TABLE meals ADD INDEX IF NOT EXISTS idx_meal_name (meal_name)", "Index on meals.meal_name created");
+
 // Insert categories
 $categories = [
     ['Breakfast', 'croissant'],

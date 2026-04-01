@@ -20,5 +20,3 @@ function validate_csrf($token) {
     if (empty($_SESSION['csrf_token']) || empty($token)) return false;
     return hash_equals($_SESSION['csrf_token'], $token);
 }
-
-?>

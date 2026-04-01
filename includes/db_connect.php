@@ -30,9 +30,9 @@ if ($db_host === 'db' && gethostbyname('db') === 'db') {
     $db_host = '127.0.0.1';
 }
 
-$db_user = $_ENV['MYSQL_USER'] ?? ($_ENV['DB_USER'] ?? 'root');
-$db_password = $_ENV['MYSQL_PASSWORD'] ?? ($_ENV['DB_PASSWORD'] ?? '');
-$db_name = $_ENV['MYSQL_DATABASE'] ?? ($_ENV['DB_NAME'] ?? 'meal_planning_db');
+$db_user = $_ENV['MYSQL_USER'] ?? ($_ENV['DB_USER'] ?? 'nutri');
+$db_password = $_ENV['MYSQL_PASSWORD'] ?? ($_ENV['DB_PASSWORD'] ?? 'nutri');
+$db_name = $_ENV['MYSQL_DATABASE'] ?? ($_ENV['DB_NAME'] ?? 'nutriplan');
 $db_charset = 'utf8mb4';
 
 $dsn = "mysql:host={$db_host};dbname={$db_name};charset={$db_charset}";
@@ -71,9 +71,11 @@ try {
 $conn = $pdo;
 
 // Sanitize input for non-SQL usage (use prepared statements for queries)
-function sanitize_input($data) {
-    $data = trim($data);
-    return htmlspecialchars($data, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+if (!function_exists('sanitize_input')) {
+    function sanitize_input($data) {
+        $data = trim((string)$data);
+        return htmlspecialchars($data, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
 }
 
 // Helper: execute a prepared query and return statement

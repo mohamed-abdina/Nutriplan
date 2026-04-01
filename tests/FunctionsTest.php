@@ -4,7 +4,6 @@ use PHPUnit\Framework\TestCase;
 require_once __DIR__ . '/bootstrap.php';
 
 // Include additional functions for testing
-require_once __DIR__ . '/../includes/db_connect.php';
 require_once __DIR__ . '/../includes/csrf.php';
 
 final class FunctionsTest extends TestCase
@@ -138,7 +137,7 @@ final class FunctionsTest extends TestCase
     {
         // Start session for CSRF testing
         if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+            secure_session_start();
         }
 
         $token1 = csrf_token();
@@ -152,7 +151,7 @@ final class FunctionsTest extends TestCase
     public function testCsrfTokenConsistency()
     {
         if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+            secure_session_start();
         }
 
         // Clear existing token
@@ -168,7 +167,7 @@ final class FunctionsTest extends TestCase
     public function testCsrfValidation()
     {
         if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+            secure_session_start();
         }
 
         // Clear existing token
@@ -183,7 +182,7 @@ final class FunctionsTest extends TestCase
     public function testCsrfValidationInvalidToken()
     {
         if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+            secure_session_start();
         }
 
         $token = csrf_token();
@@ -196,7 +195,7 @@ final class FunctionsTest extends TestCase
     public function testCsrfValidationEmptyToken()
     {
         if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+            secure_session_start();
         }
 
         // Empty token should not verify

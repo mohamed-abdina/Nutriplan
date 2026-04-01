@@ -160,4 +160,112 @@ function get_week_stats(&$conn, $user_id) {
     $row = pdo_fetch_one($sql, [':week_ago' => $week_ago, ':today' => $today]);
     return $row === false ? ['days_planned' => 0, 'total_meals' => 0, 'total_calories' => 0] : $row;
 }
-?>
+
+if (!function_exists('sanitize_input')) {
+    function sanitize_input($data) {
+        $data = trim((string)$data);
+        return htmlspecialchars($data, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+}
+
+/**
+ * Generate unified meal card HTML structure
+ * Used by server-side rendering (meal_card.php) and client-side JavaScript
+ * Ensures consistent card styling across all pages (search, dashboard, etc.)
+ * 
+ * @param array $meal Meal data array with keys: meal_id, meal_name, meal_icon, category_name, calories, proteins_g
+ * @param array $options Optional rendering options: animation_delay, card_accent_override
+ * @return string HTML markup for meal card
+ */
+function generate_meal_card_html($meal, $options = []) {
+    // Extract meal data
+    $meal_id = (int)($meal['meal_id'] ?? 0);
+    $meal_name = htmlspecialchars((string)($meal['meal_name'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $category_name = htmlspecialchars((string)($meal['category_name'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $calories = (int)($meal['calories'] ?? 0);
+    $protein = (int)($meal['proteins_g'] ?? 0);
+    $meal_icon_raw = trim((string)($meal['meal_icon'] ?? ''));
+    
+    // Determine icon display
+    $meal_icon_display = $meal_icon_raw;
+    if ($meal_icon_raw === '' || preg_match('/^[a-z0-9\-\_\s]+$/i', $meal_icon_raw)) {
+        $category_lower = strtolower($category_name);
+        if (strpos($category_lower, 'breakfast') !== false) {
+            $meal_icon_display = '🍳';
+        } elseif (strpos($category_lower, 'lunch') !== false) {
+            $meal_icon_display = '🥗';
+        } elseif (strpos($category_lower, 'dinner') !== false || strpos($category_lower, 'supper') !== false) {
+            $meal_icon_display = '🍽️';
+        } elseif (strpos($category_lower, 'snack') !== false) {
+            $meal_icon_display = '🥜';
+        } else {
+            $meal_icon_display = '🍽️';
+        }
+    }
+    
+    // Determine nutrition level and color
+    $nutrition_level = '';
+    $nutrition_color = 'var(--primary)';
+    
+    if ($protein > 25) {
+        $nutrition_level = 'High Protein';
+        $nutrition_color = 'var(--accent)';
+    } elseif ($calories < 300) {
+        $nutrition_level = 'Low Cal';
+        $nutrition_color = 'var(--success)';
+    } elseif ($calories > 700) {
+        $nutrition_level = 'Hearty';
+        $nutrition_color = 'var(--warning)';
+    }
+    
+    // Override nutrition color if specified
+    if (!empty($options['card_accent_override'])) {
+        $nutrition_color = htmlspecialchars($options['card_accent_override'], ENT_QUOTES, 'UTF-8');
+    }
+    
+    // Build animation delay style
+    $animation_delay = isset($options['animation_delay']) ? (int)$options['animation_delay'] * 60 : 0;
+    $animation_style = $animation_delay > 0 ? "animation-delay: {$animation_delay}ms" : '';
+    
+    // Build the HTML
+    $html = <<<HTML
+<article class="meal-card stagger-item" style="--card-accent: {$nutrition_color}; {$animation_style}">
+    <div class="card-accent-strip"></div>
+    <div class="card-body">
+        <div style="display: flex; gap: var(--sp-3); width: 100%;">
+            <div class="card-icon" aria-hidden="true">{$meal_icon_display}</div>
+            <div style="flex: 1; min-width: 0;">
+                <div class="card-title">{$meal_name}</div>
+                <span class="card-category">{$category_name}</span>
+                <div class="card-badges">
+                    <div class="nutrition-badge badge-primary" title="{$calories} calories">
+                        🔥 {$calories} cal
+                    </div>
+                    <div class="nutrition-badge badge-accent" title="{$protein}g protein">
+                        💪 {$protein}g
+                    </div>
+HTML;
+    
+    if ($nutrition_level) {
+        $nutrition_level_escaped = htmlspecialchars($nutrition_level, ENT_QUOTES, 'UTF-8');
+        $html .= <<<HTML
+                    <div class="nutrition-badge badge-level" style="--badge-color: {$nutrition_color};" title="{$nutrition_level_escaped}">
+                        ✨ {$nutrition_level_escaped}
+                    </div>
+HTML;
+    }
+    
+    $html .= <<<HTML
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-actions">
+        <button class="btn btn-ghost btn-sm" onclick="addToShoppingList({$meal_id})" aria-label="Add {$meal_name} to shopping list">+ Add</button>
+        <a href="meal.php?id={$meal_id}" class="btn btn-outline btn-sm">Details →</a>
+    </div>
+</article>
+HTML;
+    
+    return $html;
+}

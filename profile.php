@@ -34,7 +34,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$meals_info = pdo_fetch_one("SELECT COUNT(DISTINCT DATE(created_at)) as days, COUNT(*) as total FROM meals") ?? ['days' => 0, 'total' => 0];
+// Fix: Ensure meals_info is always an array to prevent "Trying to access array offset on value of type bool" error
+$meals_info_result = pdo_fetch_one("SELECT COUNT(*) as total FROM meals WHERE user_id = ?", [$user_id]);
+$meals_info = (is_array($meals_info_result) && isset($meals_info_result['total'])) 
+    ? $meals_info_result 
+    : ['total' => 0];
 
 $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE user_id = ?", [$user_id]) ?? ['lists' => 0];
 ?>
@@ -54,52 +58,107 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
         <?php include 'components/sidebar.php'; ?>
         
         <main class="main page-enter">
+            <!-- Breadcrumb Navigation -->
+            <div style="display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-6); color: var(--text-3); font-size: var(--text-sm);">
+                <a href="dashboard.php" style="color: var(--text-2); text-decoration: none; transition: color 0.2s;">Dashboard</a>
+                <span>/</span>
+                <span style="color: var(--text-1); font-weight: 500;">Profile</span>
+            </div>
             <!-- Profile Header -->
             <div class="responsive-profile-card card">
                 <div style="height: 4px; background: var(--grad-primary); margin: -24px -24px 0; margin-bottom: var(--sp-6);"></div>
+                
+                <!-- Avatar with upload affordance -->
                 <div style="position: relative; width: clamp(80px, 25vw, 96px); height: clamp(80px, 25vw, 96px); margin: 0 auto var(--sp-4);">
                     <div class="profile-avatar" style="width: 100%; height: 100%; background: var(--grad-primary); border-radius: 50%; background-size: cover; background-position: center;"></div>
-                    <button onclick="document.getElementById('avatar-input').click()" style="position: absolute; bottom: 0; right: 0; width: 32px; height: 32px; background: var(--primary); border: 2px solid var(--bg); border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; min-width: 32px; min-height: 32px;">✏️</button>
+                    <button onclick="document.getElementById('avatar-input').click()" title="Upload new avatar" style="position: absolute; bottom: 0; right: 0; width: 40px; height: 40px; background: var(--primary); border: 3px solid var(--bg); border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; min-width: 40px; min-height: 40px; transition: all 0.2s ease;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    </button>
                     <input type="file" id="avatar-input" accept="image/*" style="display: none;" onchange="const file=this.files[0];  if(file)handleAvatarUpload(file);">
                 </div>
                 
-                <h2><?php echo $user['first_name']; ?> <?php echo $user['last_name']; ?></h2>
-                <p style="color: var(--text-2); margin-top: var(--sp-2);">@<?php echo $user['username']; ?></p>
+                <h2><?php echo htmlspecialchars($user['first_name'], ENT_QUOTES, 'UTF-8'); ?> <?php echo htmlspecialchars($user['last_name'], ENT_QUOTES, 'UTF-8'); ?></h2>
+                <p style="color: var(--text-2); margin-top: var(--sp-2);">@<?php echo htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8'); ?></p>
                 
-                <!-- Stats -->
+                <!-- Stats - Improved layout -->
                 <div class="stats-grid-auto">
-                    <div>
-                        <div style="font-size: var(--text-2xl); font-weight: 700; color: var(--primary);"><?php echo $meals_info['total']; ?></div>
-                        <div style="font-size: var(--text-xs); color: var(--text-2);">Meals Saved</div>
+                    <div style="text-align: center; padding: var(--sp-3);">
+                        <div style="font-size: var(--text-2xl); font-weight: 700; color: var(--primary); line-height: 1;"><?php echo (int)($meals_info['total'] ?? 0); ?></div>
+                        <div style="font-size: var(--text-xs); color: var(--text-2); margin-top: var(--sp-1);">Meals Saved</div>
                     </div>
-                    <div>
-                        <div style="font-size: var(--text-2xl); font-weight: 700; color: var(--success);"><?php echo $list_info['lists']; ?></div>
-                        <div style="font-size: var(--text-xs); color: var(--text-2);">Lists Created</div>
+                    <div style="text-align: center; padding: var(--sp-3);">
+                        <div style="font-size: var(--text-2xl); font-weight: 700; color: var(--success); line-height: 1;"><?php echo (int)($list_info['lists'] ?? 0); ?></div>
+                        <div style="font-size: var(--text-xs); color: var(--text-2); margin-top: var(--sp-1);">Lists Created</div>
                     </div>
-                    <div>
-                        <div style="font-size: var(--text-2xl); font-weight: 700; color: var(--accent);">12</div>
-                        <div style="font-size: var(--text-xs); color: var(--text-2);">Weeks Active</div>
+                    <div style="text-align: center; padding: var(--sp-3);">
+                        <div style="font-size: var(--text-2xl); font-weight: 700; color: var(--accent); line-height: 1;">12</div>
+                        <div style="font-size: var(--text-xs); color: var(--text-2); margin-top: var(--sp-1);">Weeks Active</div>
                     </div>
                 </div>
             </div>
             
             <!-- Settings Tabs -->
-            <div class="tab-button-group" role="tablist" style="margin-bottom: var(--sp-8);">
-                <button class="tab-btn tab-button active" data-tab="personal" role="tab" aria-selected="true" aria-controls="personal-panel" id="personal-tab">👤 Personal</button>
-                <button class="tab-btn tab-button" data-tab="favorites" role="tab" aria-selected="false" aria-controls="favorites-panel" id="favorites-tab">⭐ Favorites</button>
-                <button class="tab-btn tab-button" data-tab="analytics" role="tab" aria-selected="false" aria-controls="analytics-panel" id="analytics-tab">📊 Analytics</button>
-                <button class="tab-btn tab-button" data-tab="preferences" role="tab" aria-selected="false" aria-controls="preferences-panel" id="preferences-tab">⚙️ Preferences</button>
-                <button class="tab-btn tab-button" data-tab="security" role="tab" aria-selected="false" aria-controls="security-panel" id="security-tab">🔐 Security</button>
+            <div class="tab-button-group" role="tablist" style="margin-bottom: var(--sp-8); display: flex; gap: var(--sp-2); overflow-x: auto; overflow-y: hidden;">
+                <button class="tab-btn tab-button active" data-tab="personal" role="tab" aria-selected="true" aria-controls="personal-panel" id="personal-tab" title="Edit personal information">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 0.5em;">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>Personal
+                </button>
+                <button class="tab-btn tab-button" data-tab="favorites" role="tab" aria-selected="false" aria-controls="favorites-panel" id="favorites-tab" title="View your favorite meals">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 0.5em;">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                    </svg>Favorites
+                </button>
+                <button class="tab-btn tab-button" data-tab="analytics" role="tab" aria-selected="false" aria-controls="analytics-panel" id="analytics-tab" title="View your nutrition insights">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 0.5em;">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>Analytics
+                </button>
+                <button class="tab-btn tab-button" data-tab="preferences" role="tab" aria-selected="false" aria-controls="preferences-panel" id="preferences-tab" title="Manage your preferences">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 0.5em;">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m5.08-5.08l4.24-4.24"></path>
+                    </svg>Preferences
+                </button>
+                <button class="tab-btn tab-button" data-tab="security" role="tab" aria-selected="false" aria-controls="security-panel" id="security-tab" title="Security settings">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 0.5em;">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    </svg>Security
+                </button>
             </div>
             
             <!-- Personal Info Tab -->
             <div id="personal-panel" role="tabpanel" aria-labelledby="personal-tab" class="tab-panel active">
-                <div style="max-width: 500px;">
-                    <?php if ($update_success): ?>
-                    <div style="background: rgba(52, 211, 153, 0.15); border: 1px solid var(--success); border-radius: 8px; padding: var(--sp-4); margin-bottom: var(--sp-6); color: var(--success); font-size: var(--text-sm);">
-                        ✓ Profile updated successfully
+                <div style="max-width: 600px;">
+                    <div style="display: flex; gap: var(--sp-4); margin-bottom: var(--sp-6);">
+                        <div style="flex: 1;">
+                            <?php if ($update_success): ?>
+                            <div style="background: rgba(52, 211, 153, 0.15); border: 1px solid var(--success); border-radius: 8px; padding: var(--sp-4); color: var(--success); font-size: var(--text-sm); display: flex; gap: var(--sp-2); align-items: center;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                Profile updated successfully
+                            </div>
+                            <?php endif; ?>
+                            <?php if ($update_error): ?>
+                            <div style="background: rgba(248, 113, 113, 0.15); border: 1px solid var(--danger); border-radius: 8px; padding: var(--sp-4); color: var(--danger); font-size: var(--text-sm); display: flex; gap: var(--sp-2); align-items: center;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                </svg>
+                                <?php echo htmlspecialchars($update_error, ENT_QUOTES, 'UTF-8'); ?>
+                            </div>
+                            <?php endif; ?>
+                        </div>
                     </div>
-                    <?php endif; ?>
                     
                     <form method="POST">
                         <input type="hidden" name="action" value="update_profile">
@@ -107,26 +166,36 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
                         
                         <div class="form-grid-2">
                             <div class="field">
-                                <input type="text" name="first_name" value="<?php echo $user['first_name']; ?>" placeholder=" " required>
+                                <input type="text" name="first_name" value="<?php echo htmlspecialchars($user['first_name'], ENT_QUOTES, 'UTF-8'); ?>" placeholder=" " required>
                                 <label>First Name</label>
                             </div>
                             <div class="field">
-                                <input type="text" name="last_name" value="<?php echo $user['last_name']; ?>" placeholder=" " required>
+                                <input type="text" name="last_name" value="<?php echo htmlspecialchars($user['last_name'], ENT_QUOTES, 'UTF-8'); ?>" placeholder=" " required>
                                 <label>Last Name</label>
                             </div>
                         </div>
                         
-                        <div class="field">
-                            <input type="email" value="<?php echo $user['email']; ?>" placeholder=" " disabled>
-                            <label>Email (cannot change)</label>
+                        <div class="field" style="position: relative;">
+                            <input type="email" value="<?php echo htmlspecialchars($user['email'], ENT_QUOTES, 'UTF-8'); ?>" placeholder=" " disabled style="padding-right: 40px;">
+                            <label>Email</label>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none;" title="This field cannot be changed">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                            <small style="color: var(--text-3); margin-top: var(--sp-1); display: block; font-style: italic;">💡 Cannot be changed for security reasons</small>
                         </div>
                         
-                        <div class="field">
-                            <input type="text" value="<?php echo $user['username']; ?>" placeholder=" " disabled>
-                            <label>Username (cannot change)</label>
+                        <div class="field" style="position: relative;">
+                            <input type="text" value="<?php echo htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8'); ?>" placeholder=" " disabled style="padding-right: 40px;">
+                            <label>Username</label>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none;" title="This field cannot be changed">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                            <small style="color: var(--text-3); margin-top: var(--sp-1); display: block; font-style: italic;">💡 Cannot be changed for security reasons</small>
                         </div>
                         
-                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Save Changes</button>
                     </form>
                 </div>
             </div>
@@ -253,9 +322,9 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
             </div>
             
             <!-- Danger Zone -->
-            <div style="margin-top: var(--sp-12);">
-                <h3 style="color: var(--danger); margin-bottom: var(--sp-6);">Danger Zone</h3>
-                <div style="background: rgba(248, 113, 113, 0.1); border: 1px solid var(--danger); border-radius: 12px; padding: var(--sp-6);">
+            <div style="margin-top: var(--sp-12); border-top: 2px solid var(--border); padding-top: var(--sp-12);">
+                <h3 style="color: var(--danger); margin-bottom: var(--sp-6);">🗑️ Danger Zone</h3>
+                <div style="background: rgba(248, 113, 113, 0.1); border: 2px solid var(--danger); border-radius: 12px; padding: var(--sp-6);">
                     <h4 style="margin-bottom: var(--sp-2);">Delete Account</h4>
                     <p style="color: var(--text-2); font-size: var(--text-sm); margin-bottom: var(--sp-4);">Permanently delete your account and all associated data. This action cannot be undone.</p>
                     <button class="btn btn-danger" onclick="openModal('delete-modal')">Delete Account</button>
@@ -300,10 +369,16 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
         });
         
         function loadFavorites() {
+            const formData = new URLSearchParams({
+                action: 'get_favorites',
+                limit: '12',
+                csrf_token: getCsrfToken()
+            });
+            
             fetch('api/meal_ratings.php', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: 'action=get_favorites&limit=12'
+                body: formData
             })
             .then(r => r.json())
             .then(data => {
@@ -419,10 +494,15 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
         }
         
         function loadPreferences() {
+            const formData = new URLSearchParams({
+                action: 'get',
+                csrf_token: getCsrfToken()
+            });
+            
             fetch('api/user_preferences.php', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: 'action=get'
+                body: formData
             })
             .then(r => r.json())
             .then(data => {

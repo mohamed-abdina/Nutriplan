@@ -68,30 +68,90 @@ function initMobileMenu() {
     const overlay = document.querySelector('.sidebar-overlay');
     
     if (hamburger && sidebar) {
-        // Simple toggle: add/remove 'open' class on mobile
-        hamburger.addEventListener('click', () => {
-            sidebar.classList.toggle('open');
-            if (overlay) overlay.classList.toggle('visible');
+        // Toggle menu: add/remove 'is-open' class on mobile
+        const toggleMenu = () => {
+            const isOpen = sidebar.classList.toggle('is-open');
+            hamburger.classList.toggle('is-open', isOpen);
+            
+            if (overlay) overlay.classList.toggle('visible', isOpen);
+            
+            // Lock/unlock body scroll when menu is open
+            if (isOpen) {
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.body.style.overflow = '';
+            }
+        };
+        
+        // Hamburger button click to toggle
+        hamburger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleMenu();
         });
 
-        // Close sidebar when clicking outside on mobile
+        // Close sidebar when clicking on overlay backdrop
+        if (overlay) {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay && window.innerWidth <= 1023) {
+                    sidebar.classList.remove('is-open');
+                    hamburger.classList.remove('is-open');
+                    overlay.classList.remove('visible');
+                    document.body.style.overflow = '';
+                }
+            });
+        }
+
+        // Close sidebar when clicking outside (not on sidebar, not on hamburger, not on overlay)
         document.addEventListener('click', (e) => {
             if (window.innerWidth <= 1023) {
-                if (!sidebar.contains(e.target) && !hamburger.contains(e.target)) {
-                    sidebar.classList.remove('open');
-                    if (overlay) overlay.classList.remove('visible');
+                const isClickOnSidebar = sidebar.contains(e.target);
+                const isClickOnHamburger = hamburger.contains(e.target);
+                const isClickOnOverlay = overlay && overlay.contains(e.target);
+                
+                if (!isClickOnSidebar && !isClickOnHamburger && !isClickOnOverlay) {
+                    if (sidebar.classList.contains('is-open')) {
+                        sidebar.classList.remove('is-open');
+                        hamburger.classList.remove('is-open');
+                        if (overlay) overlay.classList.remove('visible');
+                        document.body.style.overflow = '';
+                    }
                 }
             }
         });
 
         // Close sidebar when a nav item is clicked
         document.querySelectorAll('.nav-item a').forEach(item => {
-            item.addEventListener('click', () => {
+            item.addEventListener('click', (e) => {
                 if (window.innerWidth <= 1023) {
-                    sidebar.classList.remove('open');
+                    e.stopPropagation();
+                    sidebar.classList.remove('is-open');
+                    hamburger.classList.remove('is-open');
                     if (overlay) overlay.classList.remove('visible');
+                    document.body.style.overflow = '';
                 }
             });
+        });
+        
+        // Close sidebar on ESC key press
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && window.innerWidth <= 1023) {
+                if (sidebar.classList.contains('is-open')) {
+                    sidebar.classList.remove('is-open');
+                    hamburger.classList.remove('is-open');
+                    if (overlay) overlay.classList.remove('visible');
+                    document.body.style.overflow = '';
+                }
+            }
+        });
+        
+        // Close sidebar when window is resized to desktop
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 1023) {
+                sidebar.classList.remove('is-open');
+                hamburger.classList.remove('is-open');
+                if (overlay) overlay.classList.remove('visible');
+                document.body.style.overflow = '';
+            }
         });
     }
 }
@@ -133,6 +193,107 @@ function escapeHtml(unsafe) {
     const div = document.createElement('div');
     div.textContent = unsafe;
     return div.innerHTML;
+}
+
+/**
+ * Normalize meal icon slugs to emoji based on category
+ * @param {string} icon - Icon slug (e.g., 'pot-of-food', 'cooking')
+ * @param {string} categoryName - Meal category name (e.g., 'Breakfast', 'Lunch')
+ * @returns {string} Emoji icon or original icon if already emoji
+ */
+function normalizeMealIcon(icon, categoryName = '') {
+    const raw = String(icon || '').trim();
+    const category = String(categoryName || '').toLowerCase();
+
+    if (!raw || /^[a-z0-9\-\_\s]+$/i.test(raw)) {
+        if (category.includes('breakfast')) return '🍳';
+        if (category.includes('lunch')) return '🥗';
+        if (category.includes('dinner') || category.includes('supper')) return '🍽️';
+        if (category.includes('snack')) return '🥜';
+        return '🍽️';
+    }
+
+    return raw;
+}
+
+/**
+ * Generate unified meal card HTML structure (client-side)
+ * Mirror of PHP generate_meal_card_html() for consistent rendering
+ * Used by search.php, dashboard.php, and other pages
+ * 
+ * @param {Object} meal Meal data with keys: meal_id, meal_name, meal_icon, category_name, calories, proteins_g
+ * @param {Object} options Optional: animation_delay (0-based index), card_accent_override (CSS color)
+ * @returns {string} HTML markup for meal card
+ */
+function generateMealCardHtml(meal, options = {}) {
+    // Extract and sanitize meal data
+    const meal_id = parseInt(meal.meal_id) || 0;
+    const meal_name = escapeHtml(meal.meal_name || '');
+    const category_name = escapeHtml(meal.category_name || '');
+    const calories = parseInt(meal.calories) || 0;
+    const protein = parseInt(meal.proteins_g) || 0;
+    
+    // Determine icon display
+    const meal_icon = normalizeMealIcon(meal.meal_icon, category_name);
+    
+    // Determine nutrition level and default color
+    let nutrition_level = '';
+    let nutrition_color = 'var(--primary)';
+    
+    if (protein > 25) {
+        nutrition_level = 'High Protein';
+        nutrition_color = 'var(--accent)';
+    } else if (calories < 300) {
+        nutrition_level = 'Low Cal';
+        nutrition_color = 'var(--success)';
+    } else if (calories > 700) {
+        nutrition_level = 'Hearty';
+        nutrition_color = 'var(--warning)';
+    }
+    
+    // Override nutrition color if specified
+    if (options.card_accent_override) {
+        nutrition_color = options.card_accent_override;
+    }
+    
+    // Build animation delay style
+    const animation_style = (options.animation_delay !== undefined) 
+        ? `animation-delay: ${options.animation_delay * 60}ms` 
+        : '';
+    
+    // Build nutrition level badge HTML
+    const nutritionBadgeHtml = nutrition_level 
+        ? `<div class="nutrition-badge badge-level" style="--badge-color: ${nutrition_color};" title="${escapeHtml(nutrition_level)}">
+                        ✨ ${escapeHtml(nutrition_level)}
+                    </div>`
+        : '';
+    
+    // Build and return the complete HTML
+    return `<article class="meal-card stagger-item" style="--card-accent: ${nutrition_color}; ${animation_style}">
+    <div class="card-accent-strip"></div>
+    <div class="card-body">
+        <div style="display: flex; gap: var(--sp-3); width: 100%;">
+            <div class="card-icon" aria-hidden="true">${meal_icon}</div>
+            <div style="flex: 1; min-width: 0;">
+                <div class="card-title">${meal_name}</div>
+                <span class="card-category">${category_name}</span>
+                <div class="card-badges">
+                    <div class="nutrition-badge badge-primary" title="${calories} calories">
+                        🔥 ${calories} cal
+                    </div>
+                    <div class="nutrition-badge badge-accent" title="${protein}g protein">
+                        💪 ${protein}g
+                    </div>
+                    ${nutritionBadgeHtml}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-actions">
+        <button class="btn btn-ghost btn-sm" onclick="addToShoppingList(${meal_id})" aria-label="Add ${meal_name} to shopping list">+ Add</button>
+        <a href="meal.php?id=${meal_id}" class="btn btn-outline btn-sm">Details →</a>
+    </div>
+</article>`;
 }
 
 // ========================================
@@ -742,6 +903,7 @@ window.addEventListener('scroll', () => {
 
 function animateCounters() {
     const counters = document.querySelectorAll('[data-count]');
+    if (!counters.length) return;
     
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
@@ -768,10 +930,29 @@ function animateCounters() {
     counters.forEach(counter => observer.observe(counter));
 }
 
+let countersInitialized = false;
+
+function initCountersWhenReady() {
+    if (countersInitialized) return;
+    const counters = document.querySelectorAll('[data-count]');
+    if (!counters.length) return;
+
+    countersInitialized = true;
+    window.requestAnimationFrame(() => {
+        setTimeout(() => {
+            animateCounters();
+        }, 120);
+    });
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     initPasswordStrength();
-    animateCounters();
+    initCountersWhenReady();
+});
+
+window.addEventListener('load', () => {
+    initCountersWhenReady();
 });
 
 // ========================================
@@ -1069,7 +1250,99 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ========================================
-// SECTION 29: KEYBOARD ACCESSIBILITY ENHANCEMENTS
+// SECTION 29: TAB NAVIGATION WITH KEYBOARD SUPPORT
+// ========================================
+
+function initProfileTabs() {
+    const tabButtons = document.querySelectorAll('.tab-btn[role="tab"]');
+    if (!tabButtons.length) return;
+    
+    tabButtons.forEach((btn, index) => {
+        // Click handler
+        btn.addEventListener('click', () => {
+            switchTab(btn);
+        });
+        
+        // Keyboard navigation: arrow keys
+        btn.addEventListener('keydown', (e) => {
+            let nextBtn = null;
+            if (e.key === 'ArrowRight') {
+                nextBtn = tabButtons[(index + 1) % tabButtons.length];
+            } else if (e.key === 'ArrowLeft') {
+                nextBtn = tabButtons[(index - 1 + tabButtons.length) % tabButtons.length];
+            } else if (e.key === 'Home') {
+                nextBtn = tabButtons[0];
+            } else if (e.key === 'End') {
+                nextBtn = tabButtons[tabButtons.length - 1];
+            }
+            
+            if (nextBtn) {
+                e.preventDefault();
+                switchTab(nextBtn);
+                nextBtn.focus();
+            }
+        });
+    });
+}
+
+function switchTab(tabBtn) {
+    // Deactivate all tabs and panels
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-selected', 'false');
+    });
+    document.querySelectorAll('[role="tabpanel"]').forEach(panel => {
+        panel.classList.add('hidden');
+        panel.classList.remove('active');
+    });
+    
+    // Activate selected tab
+    const tabId = tabBtn.getAttribute('data-tab');
+    const panelId = `${tabId}-panel`;
+    
+    tabBtn.classList.add('active');
+    tabBtn.setAttribute('aria-selected', 'true');
+    
+    const panel = document.getElementById(panelId);
+    if (panel) {
+        panel.classList.remove('hidden');
+        panel.classList.add('active');
+    }
+}
+
+// Initialize profile tabs on page load
+document.addEventListener('DOMContentLoaded', () => {
+    initProfileTabs();
+});
+
+// ========================================
+// SECTION 30: FORM SUBMISSION FEEDBACK
+// ========================================
+
+function enhanceFormFeedback() {
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            // Add visual feedback while submitting
+            const submitBtn = this.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.classList.add('btn-saving');
+                submitBtn.disabled = true;
+                const originalText = submitBtn.textContent;
+                submitBtn.textContent = '⟳ Saving...';
+                
+                // Restore after response
+                form.addEventListener('change', () => {
+                    submitBtn.classList.remove('btn-saving');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                }, { once: true });
+            }
+        });
+    });
+}
+
+// ========================================
+// SECTION 31: KEYBOARD ACCESSIBILITY ENHANCEMENTS
 // ========================================
 
 // Add keyboard navigation for shopping list items
@@ -1087,7 +1360,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ========================================
-// SECTION 30: PROGRESSIVE ENHANCEMENT CHECK
+// SECTION 32: PROGRESSIVE ENHANCEMENT CHECK
 // ========================================
 
 // Log support for advanced features

@@ -39,9 +39,9 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
             <div style="margin-bottom: var(--sp-8);">
                 <p style="font-size: var(--text-sm); color: var(--text-2); margin-bottom: var(--sp-3);">Category</p>
                 <div class="chip-group" role="group" aria-label="Filter meals by category">
-                    <button class="chip active" data-filter="all" aria-pressed="true" onclick="handleSearch()">All</button>
+                    <button class="chip active" data-filter="all" aria-pressed="true" onclick="setActiveCategory(this)">All</button>
                     <?php foreach ($categories as $cat): ?>
-                    <button class="chip" data-filter="<?php echo $cat['category_id']; ?>" aria-pressed="false" onclick="handleSearch()"><?php echo $cat['category_icon']; ?> <?php echo $cat['category_name']; ?></button>
+                    <button class="chip" data-filter="<?php echo $cat['category_id']; ?>" aria-pressed="false" onclick="setActiveCategory(this)"><?php echo $cat['category_icon']; ?> <?php echo $cat['category_name']; ?></button>
                     <?php endforeach; ?>
                 </div>
             </div>
@@ -117,13 +117,224 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
         </main>
     </div>
     
-    <script src="assets/js/main.js" defer></script>
+    <script src="assets/js/main.js"></script>
     <script>
+        // ========================================
+        // SEARCH PAGE SCRIPT
+        // Ensure main.js has loaded first
+        // ========================================
+        
+        // Wait for generateMealCardHtml to be available before search runs
+        let functionCheckInterval;
+        const maxAttempts = 20;
+        let attempts = 0;
+        let searchInitialized = false;
+           const SEARCH_REQUEST_TIMEOUT_MS = 10000;
+           const SEARCH_STATE_KEY = 'nutriplan_search_state';
+           const SEARCH_DEBUG_ENABLED = true;
+           let searchRequestSequence = 0;
+
+           function searchDebug(step, payload = null) {
+               if (!SEARCH_DEBUG_ENABLED) return;
+               const timestamp = new Date().toISOString();
+               if (payload === null || payload === undefined) {
+                   console.log(`[SEARCH_DEBUG ${timestamp}] ${step}`);
+                   return;
+               }
+               console.log(`[SEARCH_DEBUG ${timestamp}] ${step}`, payload);
+           }
+
+           window.addEventListener('error', (event) => {
+               searchDebug('Window error captured', {
+                   message: event.message,
+                   source: event.filename,
+                   line: event.lineno,
+                   column: event.colno
+               });
+           });
+
+           window.addEventListener('unhandledrejection', (event) => {
+               searchDebug('Unhandled promise rejection captured', {
+                   reason: event.reason && event.reason.message ? event.reason.message : String(event.reason)
+               });
+           });
+
+        function waitForGenerateMealCardHtml() {
+               searchDebug('Checking generateMealCardHtml availability', {
+                   attempt: attempts + 1,
+                   maxAttempts,
+                   readyState: document.readyState,
+                   hasFunction: typeof window.generateMealCardHtml === 'function'
+               });
+
+            if (typeof window.generateMealCardHtml === 'function') {
+                clearInterval(functionCheckInterval);
+                console.log('✓ generateMealCardHtml is available, initializing search...');
+                initializeSearch();
+                return;
+            }
+
+            attempts++;
+            if (attempts >= maxAttempts) {
+                clearInterval(functionCheckInterval);
+                console.error('generateMealCardHtml never became available');
+                   searchDebug('generateMealCardHtml unavailable after max attempts; showing fallback state');
+                const container = document.getElementById('results-container');
+                const noResults = document.getElementById('no-results');
+                if (container) {
+                    container.innerHTML = '';
+                    container.setAttribute('aria-busy', 'false');
+                }
+                if (noResults) {
+                    noResults.classList.remove('hidden');
+                }
+            }
+        }
+
+        function startSearchBootstrap() {
+               searchDebug('startSearchBootstrap invoked', { readyState: document.readyState });
+            functionCheckInterval = setInterval(waitForGenerateMealCardHtml, 200);
+            waitForGenerateMealCardHtml();
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', startSearchBootstrap, { once: true });
+        } else {
+            startSearchBootstrap();
+        }
         // Pagination state
         let currentOffset = 0;
         let canLoadMore = false;
         let isLoadingMore = false;
         let searchTimeout;
+        const searchDebugState = {
+            initialized: false,
+            initAttempts: 0,
+            lastRequestId: null,
+            lastRequestUrl: null,
+            lastResponseStatus: null,
+            lastResponseOk: null,
+            lastResponseContentType: null,
+            lastResponseBodyPreview: null,
+            lastApiSuccessFlag: null,
+            lastApiMessage: null,
+            lastMealCount: null,
+            lastError: null,
+            lastUpdatedAt: null
+        };
+
+        function getSearchState() {
+            const activeChip = document.querySelector('.chip.active');
+            return {
+                query: document.getElementById('searchInput').value,
+                category: activeChip ? activeChip.dataset.filter : 'all',
+                sort: document.getElementById('sortBy').value,
+                minCal: document.getElementById('minCal').value,
+                maxCal: document.getElementById('maxCal').value,
+                minProtein: document.getElementById('minProtein').value,
+                maxProtein: document.getElementById('maxProtein').value
+            };
+        }
+
+        window.__searchDebug = {
+            enabled: SEARCH_DEBUG_ENABLED,
+            getSearchState,
+            getRenderState: () => {
+                const container = document.getElementById('results-container');
+                const noResults = document.getElementById('no-results');
+                const loadMoreContainer = document.getElementById('loadMoreContainer');
+                return {
+                    readyState: document.readyState,
+                    hasGenerateMealCardHtml: typeof window.generateMealCardHtml === 'function',
+                    dom: {
+                        hasResultsContainer: !!container,
+                        hasNoResults: !!noResults,
+                        hasLoadMoreContainer: !!loadMoreContainer,
+                        hasSearchInput: !!document.getElementById('searchInput'),
+                        hasSortBy: !!document.getElementById('sortBy')
+                    },
+                    isBusy: container ? container.getAttribute('aria-busy') : null,
+                    renderedCards: container ? container.querySelectorAll('.meal-card:not(.skeleton)').length : 0,
+                    skeletonCards: container ? container.querySelectorAll('.meal-card.skeleton').length : 0,
+                    noResultsVisible: !!(noResults && !noResults.classList.contains('hidden')),
+                    loadMoreVisible: !!(loadMoreContainer && !loadMoreContainer.classList.contains('hidden')),
+                    currentOffset,
+                    canLoadMore,
+                    isLoadingMore,
+                    debugState: { ...searchDebugState }
+                };
+            },
+            rerunSearch: () => handleSearch()
+        };
+
+        function saveSearchState() {
+            try {
+                localStorage.setItem(SEARCH_STATE_KEY, JSON.stringify(getSearchState()));
+                searchDebug('Search state saved to localStorage', {
+                    key: SEARCH_STATE_KEY,
+                    state: getSearchState()
+                });
+            } catch (e) {
+                console.warn('Could not persist search state:', e);
+                searchDebug('Failed to save search state', { message: e.message });
+            }
+        }
+
+        function applyActiveCategory(categoryValue = 'all') {
+            const chips = document.querySelectorAll('.chip');
+            let matched = false;
+
+            chips.forEach(chip => {
+                const isActive = chip.dataset.filter === String(categoryValue);
+                chip.classList.toggle('active', isActive);
+                chip.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+                if (isActive) matched = true;
+            });
+
+            if (!matched) {
+                const allChip = document.querySelector('.chip[data-filter="all"]');
+                if (allChip) {
+                    allChip.classList.add('active');
+                    allChip.setAttribute('aria-pressed', 'true');
+                }
+            }
+        }
+
+        function restoreSearchState() {
+            try {
+                const raw = localStorage.getItem(SEARCH_STATE_KEY);
+                if (!raw) {
+                    searchDebug('No persisted search state found', { key: SEARCH_STATE_KEY });
+                    return;
+                }
+
+                const state = JSON.parse(raw);
+                document.getElementById('searchInput').value = state.query || '';
+                document.getElementById('sortBy').value = state.sort || 'name';
+                document.getElementById('minCal').value = state.minCal || '0';
+                document.getElementById('maxCal').value = state.maxCal || '5000';
+                document.getElementById('minProtein').value = state.minProtein || '0';
+                document.getElementById('maxProtein').value = state.maxProtein || '200';
+                applyActiveCategory(state.category || 'all');
+                searchDebug('Search state restored from localStorage', {
+                    key: SEARCH_STATE_KEY,
+                    state
+                });
+            } catch (e) {
+                console.warn('Could not restore search state:', e);
+                searchDebug('Failed to restore search state', { message: e.message });
+            }
+        }
+
+        function setActiveCategory(button) {
+            if (!button) return;
+            applyActiveCategory(button.dataset.filter || 'all');
+            searchDebug('Active category changed', {
+                category: button.dataset.filter || 'all'
+            });
+            saveSearchState();
+            handleSearch();
+        }
 
         // Toggle advanced filters visibility
         function toggleAdvancedFilters() {
@@ -140,6 +351,10 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
             document.getElementById('minProtein').value = '0';
             document.getElementById('maxProtein').value = '200';
             document.getElementById('sortBy').value = 'name';
+            document.getElementById('searchInput').value = '';
+            applyActiveCategory('all');
+            searchDebug('Filters reset to defaults');
+            saveSearchState();
             handleSearch();
         }
 
@@ -147,6 +362,7 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
         function debounceSearchHandle() {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
+                searchDebug('Debounced search triggered', { query: document.getElementById('searchInput').value });
                 handleSearch();
             }, 300);
         }
@@ -154,11 +370,24 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
         async function handleSearch() {
             currentOffset = 0;
             const container = document.getElementById('results-container');
+            if (!container) {
+                searchDebug('handleSearch aborted: results container missing');
+                return;
+            }
             container.innerHTML = '';
+               searchDebug('handleSearch invoked', {
+                   resetOffsetTo: currentOffset,
+                   state: getSearchState()
+               });
+            saveSearchState();
             performSearch();
         }
 
         async function performSearch(append = false) {
+               const requestId = ++searchRequestSequence;
+             searchDebugState.lastRequestId = requestId;
+             searchDebugState.lastError = null;
+             searchDebugState.lastUpdatedAt = new Date().toISOString();
             const query = document.getElementById('searchInput').value;
             const activeChip = document.querySelector('.chip.active');
             const category = activeChip && activeChip.dataset.filter !== 'all' ? activeChip.dataset.filter : '';
@@ -168,15 +397,38 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
             const minProtein = document.getElementById('minProtein').value;
             const maxProtein = document.getElementById('maxProtein').value;
             
-            // Update aria-pressed state on chips
-            document.querySelectorAll('.chip').forEach(chip => {
-                const isActive = chip === activeChip;
-                chip.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-            });
+            // Keep active chip + persisted state synchronized
+            applyActiveCategory(activeChip ? activeChip.dataset.filter : 'all');
+            saveSearchState();
 
             const container = document.getElementById('results-container');
             const noResults = document.getElementById('no-results');
             const loadMoreContainer = document.getElementById('loadMoreContainer');
+
+            if (!container || !noResults || !loadMoreContainer) {
+                searchDebug('performSearch aborted: required DOM nodes missing', {
+                    hasContainer: !!container,
+                    hasNoResults: !!noResults,
+                    hasLoadMoreContainer: !!loadMoreContainer
+                });
+                return;
+            }
+
+               searchDebug('performSearch started', {
+                   requestId,
+                   append,
+                   filters: {
+                       query,
+                       category,
+                       sort,
+                       minCal,
+                       maxCal,
+                       minProtein,
+                       maxProtein,
+                       currentOffset
+                   },
+                   hasGenerateMealCardHtml: typeof window.generateMealCardHtml === 'function'
+               });
 
             if (!append) {
                 // Mark as loading for screen readers
@@ -197,8 +449,15 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
                         </div>
                     </article>
                 `).join('');
+
+                   searchDebug('Skeleton loaders rendered', {
+                       requestId,
+                       skeletonCount,
+                       skeletonInDom: container.querySelectorAll('.meal-card.skeleton').length
+                   });
             }
 
+            let timeoutId = null;
             try {
                 const params = new URLSearchParams({
                     q: query,
@@ -211,34 +470,123 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
                     max_protein: maxProtein
                 });
 
-                const response = await fetch(`/api/search_api.php?${params}`);
-                const data = await response.json();
+                   const requestUrl = `/api/search_api.php?${params}`;
+                   searchDebugState.lastRequestUrl = requestUrl;
+                   searchDebug('Issuing search API request', {
+                       requestId,
+                       requestUrl,
+                       timeoutMs: SEARCH_REQUEST_TIMEOUT_MS
+                   });
+
+                const controller = new AbortController();
+                timeoutId = setTimeout(() => controller.abort(), SEARCH_REQUEST_TIMEOUT_MS);
+                   const response = await fetch(requestUrl, {
+                    signal: controller.signal
+                });
+
+                   const responseText = await response.text();
+                   searchDebug('Search API response received', {
+                       requestId,
+                       status: response.status,
+                       ok: response.ok,
+                       rateLimitRemaining: response.headers.get('X-RateLimit-Remaining'),
+                       rateLimitReset: response.headers.get('X-RateLimit-Reset'),
+                       contentType: response.headers.get('content-type'),
+                       bodyPreview: responseText.slice(0, 500)
+                   });
+                   searchDebugState.lastResponseStatus = response.status;
+                   searchDebugState.lastResponseOk = response.ok;
+                   searchDebugState.lastResponseContentType = response.headers.get('content-type');
+                   searchDebugState.lastResponseBodyPreview = responseText.slice(0, 500);
+                   searchDebugState.lastUpdatedAt = new Date().toISOString();
+
+                   if (!response.ok) {
+                       throw new Error(`Search API returned ${response.status}`);
+                   }
+
+                   let data;
+                   try {
+                       data = JSON.parse(responseText);
+                   } catch (jsonError) {
+                       searchDebug('Failed to parse search API JSON', {
+                           requestId,
+                           parseError: jsonError.message,
+                           bodyPreview: responseText.slice(0, 500)
+                       });
+                       throw jsonError;
+                   }
 
                 container.setAttribute('aria-busy', 'false');
+                   searchDebug('Search API JSON parsed', {
+                       requestId,
+                       success: data.success,
+                       message: data.message || null,
+                       mealCount: Array.isArray(data.meals) ? data.meals.length : 'non-array',
+                       hasMore: data.has_more,
+                       total: data.total,
+                       offset: data.offset
+                   });
+                   searchDebugState.lastApiSuccessFlag = data.success;
+                   searchDebugState.lastApiMessage = data.message || null;
+                   searchDebugState.lastMealCount = Array.isArray(data.meals) ? data.meals.length : null;
+                   searchDebugState.lastUpdatedAt = new Date().toISOString();
 
                 if (data.meals && data.meals.length > 0) {
-                    const mealHtml = data.meals.map((meal, index) => `
-                        <article class="meal-card stagger-item" style="--card-accent: var(--primary); animation-delay: ${index * 60}ms">
-                            <div class="card-accent-strip"></div>
-                            <div class="card-body">
-                                <div class="card-icon" aria-hidden="true">${escapeHtml(meal.meal_icon)}</div>
-                                <div style="flex: 1;">
-                                    <div class="card-title">${escapeHtml(meal.meal_name)}</div>
-                                    <span class="card-category">${escapeHtml(meal.category_name)}</span>
-                                    <p class="card-nutrients">Cal: ${escapeHtml(meal.calories.toString())} · Protein: ${escapeHtml(meal.proteins_g.toString())}g</p>
-                                </div>
-                            </div>
-                            <div class="card-actions">
-                                <button class="btn-ghost btn-sm" aria-label="Add ${escapeHtml(meal.meal_name)} to shopping list" onclick="addToShoppingList(${meal.meal_id})">+ Add</button>
-                                <a href="meal.php?id=${meal.meal_id}" class="btn-outline btn-sm">Details →</a>
-                            </div>
-                        </article>
-                    `).join('');
+                    // Use unified generateMealCardHtml function from main.js
+                    // If function not available, fall back to error message
+                    const mealHtml = data.meals.map((meal, index) => {
+                        if (typeof generateMealCardHtml !== 'function') {
+                            console.error('generateMealCardHtml function not available');
+                            return `<div class="meal-card">Error: generateMealCardHtml not available</div>`;
+                        }
+                        try {
+                            const html = generateMealCardHtml(meal, { animation_delay: index });
+                            if (!html || typeof html !== 'string') {
+                                console.error('generateMealCardHtml returned invalid type:', typeof html, html);
+                                   searchDebug('generateMealCardHtml returned invalid output', {
+                                       requestId,
+                                       index,
+                                       returnedType: typeof html,
+                                       meal
+                                   });
+                                return `<div class="meal-card">Error: Invalid return type</div>`;
+                            }
+                               if (index === 0) {
+                                   searchDebug('First meal rendered to HTML', {
+                                       requestId,
+                                       meal,
+                                       htmlLength: html.length,
+                                       htmlPreview: html.slice(0, 250)
+                                   });
+                               }
+                            return html;
+                        } catch (err) {
+                            console.error('Error in generateMealCardHtml:', err, meal);
+                               searchDebug('Exception in generateMealCardHtml', {
+                                   requestId,
+                                   error: err.message,
+                                   meal
+                               });
+                            return `<div class="meal-card">Error: ${err.message}</div>`;
+                        }
+                    }).join('');
 
-                    if (append) {
-                        container.innerHTML += mealHtml;
+                    if (mealHtml && mealHtml.length > 0) {
+                        if (append) {
+                            container.innerHTML += mealHtml;
+                        } else {
+                            container.innerHTML = mealHtml;
+                        }
+                           searchDebug('Meal HTML injected into DOM', {
+                               requestId,
+                               append,
+                               htmlLength: mealHtml.length,
+                               renderedCards: container.querySelectorAll('.meal-card:not(.skeleton)').length,
+                               skeletonCards: container.querySelectorAll('.meal-card.skeleton').length
+                           });
                     } else {
-                        container.innerHTML = mealHtml;
+                        console.warn('mealHtml is empty');
+                           searchDebug('mealHtml was empty after mapping meals', { requestId });
                     }
 
                     noResults.classList.add('hidden');
@@ -249,27 +597,63 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
                     } else {
                         loadMoreContainer.classList.add('hidden');
                     }
+                       searchDebug('Post-render visibility state (with meals)', {
+                           requestId,
+                           noResultsHidden: noResults.classList.contains('hidden'),
+                           loadMoreHidden: loadMoreContainer.classList.contains('hidden'),
+                           canLoadMore
+                       });
                 } else {
                     if (!append) {
                         container.innerHTML = '';
                         noResults.classList.remove('hidden');
                         loadMoreContainer.classList.add('hidden');
                     }
+                       searchDebug('No meals returned; toggled no-results state', {
+                           requestId,
+                           append,
+                           noResultsHidden: noResults.classList.contains('hidden'),
+                           loadMoreHidden: loadMoreContainer.classList.contains('hidden')
+                       });
                 }
             } catch (error) {
                 console.error('Search error:', error);
+                   searchDebugState.lastError = `${error.name}: ${error.message}`;
+                   searchDebugState.lastUpdatedAt = new Date().toISOString();
+                   searchDebug('performSearch caught exception', {
+                       requestId,
+                       name: error.name,
+                       message: error.message,
+                       stack: error.stack ? error.stack.split('\n').slice(0, 4).join(' | ') : ''
+                   });
                 container.setAttribute('aria-busy', 'false');
                 showToast('Search failed', 'error');
                 if (!append) {
                     container.innerHTML = '';
                     noResults.classList.remove('hidden');
                 }
+            } finally {
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                }
+                   searchDebug('performSearch completed', {
+                       requestId,
+                       finalBusy: container.getAttribute('aria-busy'),
+                       renderedCards: container.querySelectorAll('.meal-card:not(.skeleton)').length,
+                       skeletonCards: container.querySelectorAll('.meal-card.skeleton').length,
+                       noResultsHidden: noResults.classList.contains('hidden')
+                   });
             }
         }
 
         function loadMoreMeals() {
             if (isLoadingMore || !canLoadMore) return;
             isLoadingMore = true;
+            searchDebug('loadMoreMeals triggered', {
+                previousOffset: currentOffset,
+                nextOffset: currentOffset + 12,
+                canLoadMore
+            });
             
             document.getElementById('loadMoreBtn').disabled = true;
             document.getElementById('loadMoreBtn').textContent = '⏳ Loading...';
@@ -283,9 +667,21 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
         }
         
         // Load initial meals on page load
-        document.addEventListener('DOMContentLoaded', () => {
+        function initializeSearch() {
+            if (searchInitialized) return;
+            if (typeof window.generateMealCardHtml !== 'function') return;
+
+            searchInitialized = true;
+               searchDebugState.initialized = true;
+               searchDebugState.initAttempts = attempts;
+               searchDebugState.lastUpdatedAt = new Date().toISOString();
+               searchDebug('initializeSearch running', {
+                   readyState: document.readyState,
+                   hasGenerateMealCardHtml: typeof window.generateMealCardHtml === 'function'
+               });
+            restoreSearchState();
             handleSearch();
-        });
+        }
     </script>
 </body>
 </html>

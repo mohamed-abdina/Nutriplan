@@ -213,7 +213,9 @@ $error_logger = new ErrorLogger();
 // Set up error handler
 set_error_handler(function($errno, $errstr, $errfile, $errline) {
     global $error_logger;
-    $error_logger->log_error($errno, $errstr, $errfile, $errline);
+    if ($error_logger instanceof ErrorLogger) {
+        $error_logger->log_error($errno, $errstr, $errfile, $errline);
+    }
     // Return false to use default PHP error handler
     return false;
 });
@@ -221,16 +223,20 @@ set_error_handler(function($errno, $errstr, $errfile, $errline) {
 // Set up exception handler
 set_exception_handler(function($exception) {
     global $error_logger;
-    $error_logger->log_error(
-        E_USER_ERROR,
-        $exception->getMessage(),
-        $exception->getFile(),
-        $exception->getLine(),
-        ['trace' => $exception->getTraceAsString()]
-    );
-    
-    header('HTTP/1.1 500 Internal Server Error');
-    echo json_encode(['success' => false, 'message' => 'An error occurred']);
+    if ($error_logger instanceof ErrorLogger) {
+        $error_logger->log_error(
+            E_USER_ERROR,
+            $exception->getMessage(),
+            $exception->getFile(),
+            $exception->getLine(),
+            ['trace' => $exception->getTraceAsString()]
+        );
+    }
+
+    if (PHP_SAPI !== 'cli') {
+        header('HTTP/1.1 500 Internal Server Error');
+        echo json_encode(['success' => false, 'message' => 'An error occurred']);
+    }
     exit;
 });
 ?>
