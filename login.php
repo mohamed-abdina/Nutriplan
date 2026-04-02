@@ -172,7 +172,7 @@ ob_end_flush();
         </div>
     </div>
     
-    <script src="assets/js/main.js" defer></script>
+    <script src="assets/js/main.js?v=<?php echo filemtime(__DIR__ . '/assets/js/main.js'); ?>" defer></script>
     <!-- Debug: Show AJAX errors on page -->
     <script>
     // Patch: Show AJAX errors on page for debugging

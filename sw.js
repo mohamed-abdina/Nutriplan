@@ -1,11 +1,10 @@
 // Service Worker for NutriPlan PWA
-const CACHE_NAME = 'nutriplan-v1';
+const CACHE_NAME = 'nutriplan-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.php',
   '/register.php',
   '/assets/css/style.css',
-  '/assets/js/main.js',
   '/manifest.json'
 ];
 
@@ -94,7 +93,27 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets - cache first
+  // JavaScript/CSS assets - network first to avoid stale bundles after deploys
+  if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
+    event.respondWith(
+      fetch(request).then((networkResponse) => {
+        if (networkResponse && networkResponse.ok && request.method === 'GET') {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseClone);
+          });
+        }
+        return networkResponse;
+      }).catch(() => {
+        return caches.match(request).then((cached) => {
+          return cached || new Response('Offline - asset not cached', { status: 503 });
+        });
+      })
+    );
+    return;
+  }
+
+  // Other static assets - cache first
   event.respondWith(
     caches.match(request).then((cacheResponse) => {
       if (cacheResponse) {

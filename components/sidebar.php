@@ -1,10 +1,13 @@
 <?php
 // Sidebar component
 $current_page = basename($_SERVER['PHP_SELF'], '.php');
+// Handle 'shopping' redirect to 'cart' for backward compatibility
+if ($current_page === 'shopping') $current_page = 'cart';
+
 $nav_items = [
     'dashboard' => ['icon' => 'home', 'label' => 'Dashboard'],
     'search' => ['icon' => 'search', 'label' => 'Search Meals'],
-    'shopping' => ['icon' => 'shopping', 'label' => 'Shopping List'],
+    'cart' => ['icon' => 'shopping', 'label' => '🛒 Cart'],
     'profile' => ['icon' => 'user', 'label' => 'Profile']
 ];
 ?>

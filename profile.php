@@ -41,6 +41,14 @@ $meals_info = (is_array($meals_info_result) && isset($meals_info_result['total']
     : ['total' => 0];
 
 $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE user_id = ?", [$user_id]) ?? ['lists' => 0];
+
+// Get favorites count
+$favorites_info = pdo_fetch_one("SELECT COUNT(*) as count FROM meal_ratings WHERE user_id = ? AND is_wishlisted = 1", [$user_id]) ?? ['count' => 0];
+
+// Calculate weeks active
+$user_created = strtotime($user['created_at'] ?? 'now');
+$weeks_active = (int)floor((time() - $user_created) / (7 * 24 * 60 * 60));
+$weeks_active = max(1, $weeks_active); // Show at least 1 week
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -94,7 +102,11 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
                         <div style="font-size: var(--text-xs); color: var(--text-2); margin-top: var(--sp-1);">Lists Created</div>
                     </div>
                     <div style="text-align: center; padding: var(--sp-3);">
-                        <div style="font-size: var(--text-2xl); font-weight: 700; color: var(--accent); line-height: 1;">12</div>
+                        <div style="font-size: var(--text-2xl); font-weight: 700; color: #f59e0b; line-height: 1;"><?php echo (int)($favorites_info['count'] ?? 0); ?></div>
+                        <div style="font-size: var(--text-xs); color: var(--text-2); margin-top: var(--sp-1);">Wishlisted</div>
+                    </div>
+                    <div style="text-align: center; padding: var(--sp-3);">
+                        <div style="font-size: var(--text-2xl); font-weight: 700; color: var(--accent); line-height: 1;"><?php echo (int)$weeks_active; ?></div>
                         <div style="font-size: var(--text-xs); color: var(--text-2); margin-top: var(--sp-1);">Weeks Active</div>
                     </div>
                 </div>
@@ -108,10 +120,10 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
                         <circle cx="12" cy="7" r="4"></circle>
                     </svg>Personal
                 </button>
-                <button class="tab-btn tab-button" data-tab="favorites" role="tab" aria-selected="false" aria-controls="favorites-panel" id="favorites-tab" title="View your favorite meals">
+                <button class="tab-btn tab-button" data-tab="favorites" role="tab" aria-selected="false" aria-controls="favorites-panel" id="favorites-tab" title="View your wishlisted meals">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 0.5em;">
                         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                    </svg>Favorites
+                    </svg>Wishlist
                 </button>
                 <button class="tab-btn tab-button" data-tab="analytics" role="tab" aria-selected="false" aria-controls="analytics-panel" id="analytics-tab" title="View your nutrition insights">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 0.5em;">
@@ -200,16 +212,16 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
                 </div>
             </div>
             
-            <!-- Favorites Tab -->
+            <!-- Wishlist Tab -->
             <div id="favorites-panel" role="tabpanel" aria-labelledby="favorites-tab" class="tab-panel hidden">
                 <div>
-                    <h3 style="margin-bottom: var(--sp-6);">⭐ Your Favorite Meals</h3>
+                    <h3 style="margin-bottom: var(--sp-6);">❤️ My Wishlist</h3>
                     <div id="favoritesList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--sp-4);">
-                        <!-- Favorites will load here -->
+                        <!-- Wishlist items will load here -->
                     </div>
                     <div id="noFavorites" class="hidden" style="text-align: center; padding: var(--sp-12); color: var(--text-2);">
-                        <div style="font-size: 3rem; margin-bottom: var(--sp-4);">💔</div>
-                        <p>No favorite meals yet. Rate meals as you try them!</p>
+                        <div style="font-size: 3rem; margin-bottom: var(--sp-4);">🤍</div>
+                        <p>No wishlisted meals yet. Add meals to your wishlist as you discover them!</p>
                     </div>
                 </div>
             </div>
@@ -351,7 +363,7 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
         </div>
     </div>
     
-    <script src="assets/js/main.js" defer></script>
+    <script src="assets/js/main.js?v=<?php echo filemtime(__DIR__ . '/assets/js/main.js'); ?>" defer></script>
     <script>
         // Load preferences and favorites on page load
         window.addEventListener('load', () => {
@@ -370,12 +382,12 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
         
         function loadFavorites() {
             const formData = new URLSearchParams({
-                action: 'get_favorites',
+                action: 'get_wishlist',
                 limit: '12',
                 csrf_token: getCsrfToken()
             });
             
-            fetch(apiUrl('api/meal_ratings.php'), {
+            fetch(apiUrl('api/wishlist_api.php'), {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                 body: formData
@@ -385,8 +397,8 @@ $list_info = pdo_fetch_one("SELECT COUNT(*) as lists FROM shopping_lists WHERE u
                 const list = document.getElementById('favoritesList');
                 const noFavorites = document.getElementById('noFavorites');
                 
-                if (data.success && data.favorites && data.favorites.length > 0) {
-                    list.innerHTML = data.favorites.map(meal => `
+                if (data.success && data.wishlist && data.wishlist.length > 0) {
+                    list.innerHTML = data.wishlist.map(meal => `
                         <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: var(--sp-4); overflow: hidden;">
                             <div style="font-size: 2rem; margin-bottom: var(--sp-2);">${escapeHtml(meal.meal_icon)}</div>
                             <h4 style="margin-bottom: var(--sp-2);">${escapeHtml(meal.meal_name)}</h4>

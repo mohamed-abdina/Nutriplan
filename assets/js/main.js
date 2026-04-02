@@ -196,6 +196,9 @@ function showToast(message, type = 'success') {
     }, 3500);
 }
 
+// Make showToast globally available for other scripts
+window.showToast = showToast;
+
 // ========================================
 // SECTION 5: HTML ESCAPING UTILITY
 // ========================================
@@ -206,6 +209,9 @@ function escapeHtml(unsafe) {
     div.textContent = unsafe;
     return div.innerHTML;
 }
+
+// Make escapeHtml globally available for other scripts
+window.escapeHtml = escapeHtml;
 
 /**
  * Normalize meal icon slugs to emoji based on category
@@ -227,6 +233,9 @@ function normalizeMealIcon(icon, categoryName = '') {
 
     return raw;
 }
+
+// Make normalizeMealIcon globally available
+window.normalizeMealIcon = normalizeMealIcon;
 
 /**
  * Generate unified meal card HTML structure (client-side)
@@ -307,6 +316,9 @@ function generateMealCardHtml(meal, options = {}) {
     </div>
 </article>`;
 }
+
+// Make generateMealCardHtml globally available for search and other pages
+window.generateMealCardHtml = generateMealCardHtml;
 
 // ========================================
 // SECTION 6: MODAL MANAGEMENT
@@ -467,11 +479,14 @@ function getPasswordStrength(password) {
 // SECTION 8: SEARCH DEBOUNCE
 // ========================================
 
-let searchTimeout;
+// searchTimeout is declared globally to avoid conflicts with search.php
+if (!window.searchTimeout) {
+    window.searchTimeout = null;
+}
 
 function debounceSearch(query, callback) {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
+    clearTimeout(window.searchTimeout);
+    window.searchTimeout = setTimeout(() => {
         callback(query);
     }, 300);
 }
@@ -496,16 +511,27 @@ document.addEventListener('click', (e) => {
 // SECTION 10: SHOPPING LIST ACTIONS
 // ========================================
 
-async function addToShoppingList(mealId) {
+/**
+ * CART FUNCTIONS (renamed from shopping)
+ */
+
+/**
+ * Enhanced addToCart with visual feedback and toast notifications
+ * Changes button state: '+ Add to Cart' → '✓ In Cart' with success styling
+ */
+async function addToCart(mealId) {
     try {
         showLoader(true);
         const csrf = getCsrfToken();
-        const response = await fetch(apiUrl('api/shopping_action.php'), {
+        const btn = document.querySelector(`[onclick*="addToCart(${mealId})"]`);
+        if (btn) btn.disabled = true;
+        
+        const response = await fetch(apiUrl('api/cart_action.php'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
             },
-            body: `action=add&meal_id=${mealId}&csrf_token=${encodeURIComponent(csrf)}`
+            body: `action=add_to_cart&meal_id=${mealId}&csrf_token=${encodeURIComponent(csrf)}`
         });
         
         const contentType = response.headers.get('content-type') || '';
@@ -516,37 +542,48 @@ async function addToShoppingList(mealId) {
                 result = await response.json();
             } catch (err) {
                 console.error('Failed to parse JSON:', err);
-                showToast('Server error: invalid response', 'error');
+                showToast('🔴 Server error: invalid response', 'error');
                 return;
             }
         } else {
-            showToast('Server error: expected JSON response', 'error');
+            showToast('🔴 Server error: expected JSON response', 'error');
             return;
         }
         
         if (result.success) {
-            showToast('Added to shopping list!', 'success');
+            // Update button styling with active state
+            if (btn) {
+                btn.classList.add('in-cart');
+                btn.textContent = '✓ In Cart';
+                // Disable after adding to prevent multiple clicks
+                setTimeout(() => { btn.disabled = true; }, 100);
+            }
+            showToast('✓ Added to cart! 🛒', 'success');
+            // Haptic feedback
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
         } else {
-            showToast('Error: ' + result.message, 'error');
+            showToast('🔴 Error: ' + (result.message || 'Could not add to cart'), 'error');
         }
     } catch (error) {
         console.error('Error:', error);
-        showToast('Error adding to list', 'error');
+        showToast('🔴 Error adding to cart', 'error');
     } finally {
+        const btn = document.querySelector(`[onclick*="addToCart(${mealId})"]`);
+        if (btn) btn.disabled = false;
         showLoader(false);
     }
 }
 
-async function toggleShoppingItem(itemId) {
+async function toggleCartItem(itemId) {
     try {
         showLoader(true);
         const csrf = getCsrfToken();
-        const response = await fetch(apiUrl('api/shopping_action.php'), {
+        const response = await fetch(apiUrl('api/cart_action.php'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
             },
-            body: `action=toggle&item_id=${itemId}&csrf_token=${encodeURIComponent(csrf)}`
+            body: `action=toggle_cart_item&item_id=${itemId}&csrf_token=${encodeURIComponent(csrf)}`
         });
         
         const contentType = response.headers.get('content-type') || '';
@@ -573,6 +610,8 @@ async function toggleShoppingItem(itemId) {
                 checkbox.classList.toggle('checked');
             }
             updateProgressBar();
+            // Haptic feedback
+            if (navigator.vibrate) navigator.vibrate(100);
         }
     } catch (error) {
         console.error('Error:', error);
@@ -581,17 +620,17 @@ async function toggleShoppingItem(itemId) {
     }
 }
 
-async function deleteShoppingItem(itemId) {
-    if (confirm('Delete this item?')) {
+async function removeFromCart(itemId) {
+    if (confirm('Remove this item from cart?')) {
         try {
             showLoader(true);
             const csrf = getCsrfToken();
-            const response = await fetch(apiUrl('api/shopping_action.php'), {
+            const response = await fetch(apiUrl('api/cart_action.php'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
                 },
-                body: `action=delete&item_id=${itemId}&csrf_token=${encodeURIComponent(csrf)}`
+                body: `action=remove_from_cart&item_id=${itemId}&csrf_token=${encodeURIComponent(csrf)}`
             });
             
             const contentType = response.headers.get('content-type') || '';
@@ -613,7 +652,7 @@ async function deleteShoppingItem(itemId) {
                 const itemElement = document.querySelector(`[data-item-id="${itemId}"]`);
                 itemElement.remove();
                 updateProgressBar();
-                showToast('Item deleted', 'success');
+                showToast('Removed from cart', 'success');
             }
         } catch (error) {
             console.error('Error:', error);
@@ -622,6 +661,174 @@ async function deleteShoppingItem(itemId) {
         }
     }
 }
+
+// BACKWARD COMPATIBILITY: Keep old function names
+async function addToShoppingList(mealId) {
+    return addToCart(mealId);
+}
+
+async function toggleShoppingItem(itemId) {
+    return toggleCartItem(itemId);
+}
+
+async function deleteShoppingItem(itemId) {
+    return removeFromCart(itemId);
+}
+
+/**
+ * WISHLIST FUNCTIONS (renamed from favorites)
+ */
+
+/**
+ * Enhanced toggleWishlist with improved visual feedback
+ * Changes button: '🤍 Add to Wishlist' ↔ '❤️ Wishlisted' with CSS active state
+ */
+async function toggleWishlist(mealId) {
+    try {
+        showLoader(true);
+        const csrf = getCsrfToken();
+        const btn = document.querySelector(`[data-wishlist-btn="${mealId}"]`);
+        if (btn) btn.disabled = true;
+        
+        const response = await fetch(apiUrl('api/wishlist_api.php'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: `action=toggle_wishlist&meal_id=${mealId}&csrf_token=${encodeURIComponent(csrf)}`
+        });
+        
+        const contentType = response.headers.get('content-type') || '';
+        const result = contentType.includes('application/json') ? await response.json() : {};
+        
+        if (result.success) {
+            if (btn) {
+                btn.classList.toggle('wishlisted');
+                if (result.is_wishlisted) {
+                    btn.textContent = '❤️ Wishlisted';
+                    btn.style.borderColor = 'var(--warning)';
+                    showToast('❤️ Added to wishlist!', 'success');
+                } else {
+                    btn.textContent = '🤍 Add to Wishlist';
+                    btn.style.borderColor = 'var(--border)';
+                    showToast('💔 Removed from wishlist', 'info');
+                }
+            }
+            // Haptic feedback
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+        } else {
+            showToast('🔴 Error: ' + (result.message || 'Could not update wishlist'), 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('🔴 Error updating wishlist', 'error');
+    } finally {
+        const btn = document.querySelector(`[data-wishlist-btn="${mealId}"]`);
+        if (btn) btn.disabled = false;
+        showLoader(false);
+    }
+}
+
+// BACKWARD COMPATIBILITY
+async function toggleFavorite(mealId) {
+    return toggleWishlist(mealId);
+}
+
+/**
+ * Remove item from cart with visual feedback
+ */
+async function removeFromCart(itemId, mealId = null) {
+    try {
+        showLoader(true);
+        const csrf = getCsrfToken();
+        const btn = mealId ? document.querySelector(`[onclick*="addToCart(${mealId})"]`) : null;
+        if (btn) btn.disabled = true;
+        
+        const response = await fetch(apiUrl('api/cart_action.php'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: `action=remove_from_cart&item_id=${itemId}&csrf_token=${encodeURIComponent(csrf)}`
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            if (btn) {
+                btn.classList.remove('in-cart');
+                btn.textContent = '+ Add to Cart';
+                btn.disabled = false;
+            }
+            showToast('✓ Removed from cart', 'info');
+            if (navigator.vibrate) navigator.vibrate([100]);
+            
+            if (window.location.pathname.includes('shopping.php')) {
+                setTimeout(() => location.reload(), 600);
+            }
+        } else {
+            showToast('🔴 Error: ' + (result.message || 'Could not remove from cart'), 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('🔴 Error removing from cart', 'error');
+    } finally {
+        showLoader(false);
+    }
+}
+
+/**
+ * Check if a meal is already in the user's cart
+ */
+async function getCartStatus(mealId) {
+    try {
+        const csrf = getCsrfToken();
+        const response = await fetch(apiUrl('api/cart_action.php'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: `action=check_in_cart&meal_id=${mealId}&csrf_token=${encodeURIComponent(csrf)}`
+        });
+        
+        const result = await response.json();
+        return result.success && result.in_cart ? result : null;
+    } catch (error) {
+        console.error('Error checking cart status:', error);
+        return null;
+    }
+}
+
+/**
+ * Initialize cart button state on page load for visual feedback
+ */
+async function initCartButtonState() {
+    const btn = document.querySelector(`button[onclick*="addToCart"]`);
+    if (!btn) return;
+    
+    const onclickAttr = btn.getAttribute('onclick') || '';
+    const mealIdMatch = onclickAttr.match(/addToCart\((\d+)\)/);
+    if (!mealIdMatch) return;
+    
+    const mealId = parseInt(mealIdMatch[1]);
+    const status = await getCartStatus(mealId);
+    
+    if (status && status.in_cart) {
+        btn.classList.add('in-cart');
+        btn.textContent = '✓ In Cart';
+        btn.disabled = true;
+    }
+}
+
+// Initialize on page load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCartButtonState);
+} else {
+    initCartButtonState();
+}
+
+
+
 
 function updateProgressBar() {
     const items = document.querySelectorAll('[data-item-id]');
@@ -841,6 +1048,26 @@ if ('serviceWorker' in navigator) {
         });
     } else {
         console.log('Skipping Service Worker registration on local dev host:', hostname);
+        // Cleanup old registrations/caches that may still control localhost
+        window.addEventListener('load', async () => {
+            try {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(registrations.map((registration) => registration.unregister()));
+
+                if (window.caches && typeof window.caches.keys === 'function') {
+                    const cacheKeys = await window.caches.keys();
+                    await Promise.all(
+                        cacheKeys
+                            .filter((key) => key.startsWith('nutriplan-'))
+                            .map((key) => window.caches.delete(key))
+                    );
+                }
+
+                console.log('Local dev SW/cache cleanup complete');
+            } catch (error) {
+                console.warn('Local dev SW/cache cleanup failed:', error);
+            }
+        });
     }
 }
 
@@ -1100,7 +1327,7 @@ document.addEventListener('change', (e) => {
 });
 
 // ========================================
-// SECTION 24: SWIPE-TO-DELETE SUPPORT
+// SECTION 24: SWIPE-TO-DELETE SUPPORT (Enhanced)
 // ========================================
 
 function initSwipeToDelete() {
@@ -1116,9 +1343,34 @@ function initSwipeToDelete() {
             touchStartX = e.changedTouches[0].screenX;
         }, false);
         
+        item.addEventListener('touchmove', (e) => {
+            if (isBeingDeleted) return;
+            const currentX = e.changedTouches[0].screenX;
+            const distance = touchStartX - currentX;
+            
+            // Show visual feedback during drag - fade out as user swipes left
+            if (distance > 20) {
+                const opacity = Math.max(0.3, 1 - (distance / 300));
+                item.style.opacity = opacity;
+                item.style.transform = `translateX(-${Math.min(distance, 100)}px)`;
+                
+                // Show delete hint more prominently during swipe
+                const hint = item.querySelector('.swipe-delete-hint');
+                if (hint && distance > 50) {
+                    hint.style.opacity = Math.min(1, (distance - 50) / 50);
+                }
+            }
+        }, false);
+        
         item.addEventListener('touchend', (e) => {
             touchEndX = e.changedTouches[0].screenX;
             const swipeDistance = touchStartX - touchEndX;
+            
+            // Reset visual state
+            item.style.opacity = '1';
+            item.style.transform = 'translateX(0)';
+            const hint = item.querySelector('.swipe-delete-hint');
+            if (hint) hint.style.opacity = '0';
             
             // Swipe left to delete (> 80px swipe)
             if (swipeDistance > 80) {
@@ -1379,3 +1631,13 @@ document.addEventListener('keydown', (e) => {
 console.log('Haptic Feedback Support:', navigator.vibrate ? '✓' : '✗');
 console.log('Touch Events Support:', 'ontouchstart' in window ? '✓' : '✗');
 console.log('Service Worker Support:', 'serviceWorker' in navigator ? '✓' : '✗');
+
+// ========================================
+// SECTION 33: GLOBAL FUNCTION EXPORTS
+// ========================================
+
+// Explicitly export key functions to window for access from other contexts
+window.generateMealCardHtml = generateMealCardHtml;
+window.addToShoppingList = addToShoppingList;
+window.escapeHtml = escapeHtml;
+window.normalizeMealIcon = normalizeMealIcon;

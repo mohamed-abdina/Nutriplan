@@ -1,6 +1,10 @@
 <?php
+/**
+ * Cart Page (Renamed from Shopping List)
+ * This file redirects to shopping.php which contains the cart functionality
+ * Both shopping.php and cart.php are equivalent for backward compatibility
+ */
 require_once __DIR__ . '/includes/session.php';
-secure_session_start();
 require_once 'includes/db_connect.php';
 require_once 'includes/auth_check.php';
 
@@ -81,14 +85,6 @@ $progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
             
             <!-- Shopping Items by Category -->
             <div style="margin-bottom: var(--sp-8);">
-                <?php if (empty($items_by_category)): ?>
-                <div style="text-align: center; padding: var(--sp-12); color: var(--text-2);">
-                    <div style="font-size: 3rem; margin-bottom: var(--sp-4);">🛒</div>
-                    <h3 style="margin-bottom: var(--sp-2);">Your cart is empty</h3>
-                    <p style="margin-bottom: var(--sp-6);">Start adding meals to build your shopping list</p>
-                    <a href="search.php" class="btn btn-primary">Browse Meals →</a>
-                </div>
-                <?php else: ?>
                 <?php foreach ($items_by_category as $category => $items): ?>
                 <div style="margin-bottom: var(--sp-8);">
                     <h3 class="category-header" style="margin-bottom: var(--sp-4); color: var(--text-2);"><?php echo htmlspecialchars($category); ?></h3>
@@ -96,18 +92,17 @@ $progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
                         <?php foreach ($items as $item): ?>
                         <li class="list-item-layout swipe-enabled <?php echo $item['purchased'] ? 'list-item-checked' : ''; ?>" data-item-id="<?php echo (int)$item['item_id']; ?>" role="listitem">
                             <div class="swipe-delete-hint" aria-hidden="true">🗑 Delete</div>
-                            <label style="display: flex; align-items: center; gap: var(--sp-3); flex: 1; width: 100%; padding: var(--sp-4) var(--sp-3); cursor: pointer; transition: background-color 0.2s ease;">
-                                <input type="checkbox" class="list-item-checkbox" <?php echo $item['purchased'] ? 'checked' : ''; ?> aria-label="Mark <?php echo htmlspecialchars($item['item_name']); ?> as purchased" onchange="toggleShoppingItem(<?php echo (int)$item['item_id']; ?>)" style="min-width: 44px; min-height: 44px; cursor: pointer; -webkit-appearance: none; appearance: none; width: 24px; height: 24px; border: 2px solid var(--text-3); border-radius: 6px; background: var(--surface); checked: var(--primary);">
+                            <label style="display: flex; align-items: center; gap: var(--sp-3); flex: 1; width: 100%; padding: var(--sp-4) var(--sp-3);">
+                                <input type="checkbox" class="list-item-checkbox" <?php echo $item['purchased'] ? 'checked' : ''; ?> aria-label="Mark <?php echo htmlspecialchars($item['item_name']); ?> as purchased" onchange="toggleCartItem(<?php echo (int)$item['item_id']; ?>)">
                                 <span class="list-item-text" style="flex: 1; <?php echo $item['purchased'] ? 'text-decoration: line-through; color: var(--text-3);' : ''; ?>"><?php echo htmlspecialchars($item['item_name']); ?></span>
                                 <span class="list-item-quantity" style="font-size: var(--text-sm); color: var(--text-2);"><?php echo htmlspecialchars($item['quantity']); ?></span>
                             </label>
-                            <button class="list-item-delete" aria-label="Delete <?php echo htmlspecialchars($item['item_name']); ?>" onclick="if(confirm('Delete \\\"<?php echo htmlspecialchars(str_replace('\"', '&quot;', $item['item_name']), ENT_QUOTES); ?>\\\" from your list?')) deleteShoppingItem(<?php echo (int)$item['item_id']; ?>)" title="Delete item (or swipe left on mobile)" style="min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease;">🗑</button>
+                            <button class="list-item-delete" aria-label="Delete <?php echo htmlspecialchars($item['item_name']); ?>" onclick="if(confirm('Delete \\\"<?php echo htmlspecialchars(str_replace('\"', '&quot;', $item['item_name']), ENT_QUOTES); ?>\\\" from your list?')) removeFromCart(<?php echo (int)$item['item_id']; ?>)" title="Delete item (or swipe left on mobile)">🗑</button>
                         </li>
                         <?php endforeach; ?>
                     </ul>
                 </div>
                 <?php endforeach; ?>
-                <?php endif; ?>
             </div>
             
             <!-- Suggestions Section -->
@@ -124,20 +119,15 @@ $progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
                 <form style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-4);" class="custom-item-form" novalidate>
                     <input type="text" id="custom-item-name" placeholder="Item name" class="form-input" required aria-label="Custom item name">
                     <input type="text" id="custom-item-qty" placeholder="Quantity" class="form-input" aria-label="Quantity">
-                    <button type="button" class="btn btn-primary btn-sm" onclick="addCustomItem()">Add</button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="addCustomCartItem()">Add</button>
                 </form>
-            </div>
-            
-            <!-- Continue Shopping CTA -->
-            <div style="text-align: center; margin-top: var(--sp-12); margin-bottom: var(--sp-8);">
-                <a href="search.php" class="btn btn-outline" style="display: inline-block;">← Continue Shopping</a>
             </div>
         </main>
     </div>
     
     <script src="assets/js/main.js?v=<?php echo filemtime(__DIR__ . '/assets/js/main.js'); ?>" defer></script>
     <script>
-        function addCustomItem() {
+        function addCustomCartItem() {
             const name = document.getElementById('custom-item-name').value;
             const qty = document.getElementById('custom-item-qty').value || '1';
             
@@ -189,7 +179,7 @@ $progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
                                 <span style="background: rgba(var(--accent-rgb, 168, 85, 247), 0.1); color: var(--accent); padding: 2px 6px; border-radius: 4px;">💪 ${escapeHtml(meal.proteins_g.toString())}g</span>
                             </div>
                             
-                            <button class="btn btn-primary btn-sm" onclick="addToShoppingList(${meal.meal_id})" style="width: 100%;">+ Add to Cart</button>
+                            <button class="btn btn-primary btn-sm" onclick="addToCart(${meal.meal_id})" style="width: 100%;">+ Add to Cart</button>
                         </div>
                     `).join('');
                     

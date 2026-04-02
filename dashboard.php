@@ -39,13 +39,13 @@ if ($fetched !== false && is_array($fetched)) {
     }
 }
 
-// Get shopping list stats
+// Get cart stats
 $cart_stats = pdo_fetch_one(
-    "SELECT COUNT(DISTINCT si.item_id) as total, 
-            SUM(CASE WHEN si.purchased = 0 THEN 1 ELSE 0 END) as unpurchased
-        FROM shopping_lists sl
-        LEFT JOIN shopping_items si ON sl.list_id = si.list_id
-        WHERE sl.user_id = ?",
+    "SELECT COUNT(DISTINCT ci.item_id) as total, 
+            SUM(CASE WHEN ci.purchased = 0 THEN 1 ELSE 0 END) as unpurchased
+        FROM carts c
+        LEFT JOIN cart_items ci ON c.list_id = ci.list_id
+        WHERE c.user_id = ?",
     [$user_id]
 );
 $cart_stats = $cart_stats ?? ['total' => 0, 'unpurchased' => 0];
@@ -135,11 +135,11 @@ $nutrition_score = $total_protein > 30 && $total_calories > 500 ? 85 : 60;
                     </div>
                 </div>
                 
-                <!-- Meals You Love Section -->
+                <!-- My Wishlist Section -->
                 <div class="mt-12 hidden" id="youLoveSection">
-                    <h2 class="mb-6">❤️ Meals You Love</h2>
+                    <h2 class="mb-6">❤️ My Wishlist</h2>
                     <div class="grid-2 stagger-container" id="youLoveContainer">
-                        <!-- Loaded via JavaScript -->
+                        <!-- Wishlist items loaded via JavaScript -->
                     </div>
                 </div>
                 
@@ -152,7 +152,7 @@ $nutrition_score = $total_protein > 30 && $total_calories > 500 ? 85 : 60;
         </main>
     </div>
     
-    <script src="assets/js/main.js" defer></script>
+    <script src="assets/js/main.js?v=<?php echo filemtime(__DIR__ . '/assets/js/main.js'); ?>" defer></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             animateCounters();
@@ -175,18 +175,19 @@ $nutrition_score = $total_protein > 30 && $total_calories > 500 ? 85 : 60;
         }
         
         function loadYouLoveMeals() {
-            fetch(apiUrl('api/meal_ratings.php'), {
+            fetch(apiUrl('api/wishlist_api.php'), {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: 'action=get_top_rated&limit=6'
+                body: 'action=get_wishlist&limit=6'
             })
             .then(r => r.json())
             .then(data => {
-                if (data.success && data.top_rated && data.top_rated.length > 0) {
+                if (data.success && (data.wishlist || data.favorites) && (data.wishlist || data.favorites).length > 0) {
                     const section = document.getElementById('youLoveSection');
                     const container = document.getElementById('youLoveContainer');
+                    const meals = data.wishlist || data.favorites;
                     
-                    container.innerHTML = data.top_rated.map((meal, index) => 
+                    container.innerHTML = meals.map((meal, index) => 
                         generateMealCardHtml(meal, { 
                             animation_delay: index,
                             card_accent_override: 'var(--accent)'
@@ -196,7 +197,7 @@ $nutrition_score = $total_protein > 30 && $total_calories > 500 ? 85 : 60;
                     section.classList.remove('hidden');
                 }
             })
-            .catch(e => console.error('Error loading favorite meals:', e));
+            .catch(e => console.error('Error loading wishlist meals:', e));
         }
     </script>
 </body>

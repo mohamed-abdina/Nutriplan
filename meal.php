@@ -28,7 +28,7 @@ $total_macros = (int)$meal['proteins_g'] + (int)$meal['carbs_g'] + (int)$meal['f
 
 // Get user rating
 $user_id = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
-$user_rating = pdo_fetch_one("SELECT rating, review, is_favorite FROM meal_ratings WHERE user_id = ? AND meal_id = ?", [$user_id, $meal_id]);
+$user_rating = pdo_fetch_one("SELECT rating, review, is_wishlisted FROM meal_ratings WHERE user_id = ? AND meal_id = ?", [$user_id, $meal_id]);
 
 // Get meal sources
 $sources = pdo_fetch_all("SELECT recipe_url, source_name, source_type FROM meal_sources WHERE meal_id = ?", [$meal_id]) ?? [];
@@ -118,9 +118,9 @@ $prep_steps = pdo_fetch_all("SELECT step_number, step_description, duration_minu
                     </div>
                     
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-4);" class="meal-actions">
-                        <button class="btn btn-primary btn-full" onclick="addToShoppingList(<?php echo $meal['meal_id']; ?>)">+ Shopping List</button>
-                        <button class="btn btn-secondary btn-full" onclick="toggleFavorite(<?php echo $meal['meal_id']; ?>)" id="favorite-btn" style="border: 2px solid var(--<?php echo $user_rating && $user_rating['is_favorite'] ? 'warning' : 'border'; ?>);">
-                            <?php echo ($user_rating && $user_rating['is_favorite']) ? '💛 Favorite' : '🤍 Add to Favorites'; ?>
+                        <button class="btn btn-primary btn-full" onclick="addToCart(<?php echo $meal['meal_id']; ?>)">+ Add to Cart</button>
+                        <button class="btn btn-secondary btn-full" onclick="toggleWishlist(<?php echo $meal['meal_id']; ?>)" id="favorite-btn" data-wishlist-btn="<?php echo $meal['meal_id']; ?>" style="border: 2px solid var(--<?php echo $user_rating && $user_rating['is_wishlisted'] ? 'warning' : 'border'; ?>);">
+                            <?php echo ($user_rating && $user_rating['is_wishlisted']) ? '❤️ Wishlisted' : '🤍 Add to Wishlist'; ?>
                         </button>
                     </div>
                 </div>
@@ -255,7 +255,7 @@ $prep_steps = pdo_fetch_all("SELECT step_number, step_description, duration_minu
         </main>
     </div>
     
-    <script src="assets/js/main.js" defer></script>
+    <script src="assets/js/main.js?v=<?php echo filemtime(__DIR__ . '/assets/js/main.js'); ?>" defer></script>
     <script>
         let currentRating = <?php echo ($user_rating ? $user_rating['rating'] : '0'); ?>;
         const mealId = <?php echo $meal_id; ?>;
@@ -283,36 +283,60 @@ $prep_steps = pdo_fetch_all("SELECT step_number, step_description, duration_minu
             })
             .then(r => r.json())
             .then(data => {
+                const submitBtn = document.querySelector('[onclick*="submitRating"]');
+                if (submitBtn) submitBtn.disabled = false;
                 if (data.success) {
-                    alert('Rating saved!');
-                    location.reload();
+                    showToast('Rating saved successfully!', 'success');
+                    setTimeout(() => location.reload(), 500);
                 } else {
-                    alert('Error: ' + data.message);
+                    showToast('Error: ' + (data.message || 'Could not save rating'), 'error');
                 }
             })
-            .catch(e => console.error('Error:', e));
+            .catch(e => {
+                const submitBtn = document.querySelector('[onclick*="submitRating"]');
+                if (submitBtn) submitBtn.disabled = false;
+                console.error('Error:', e);
+                showToast('Network error: Could not submit rating', 'error');
+            });
         }
         
-        function toggleFavorite(mealId) {
-            fetch(apiUrl('api/meal_ratings.php'), {
+        function toggleWishlist(mealId) {
+            const btn = document.getElementById('favorite-btn');
+            if (btn) btn.disabled = true;
+            
+            fetch(apiUrl('api/wishlist_api.php'), {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `action=toggle_favorite&meal_id=${mealId}&csrf_token=${encodeURIComponent(document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '')}`
+                body: `action=toggle_wishlist&meal_id=${mealId}&csrf_token=${encodeURIComponent(document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '')}`
             })
             .then(r => r.json())
             .then(data => {
+                if (btn) btn.disabled = false;
                 if (data.success) {
                     const btn = document.getElementById('favorite-btn');
-                    if (data.is_favorite) {
-                        btn.textContent = '💛 Favorite';
+                    if (data.is_wishlisted) {
+                        btn.textContent = '❤️ Wishlisted';
                         btn.style.borderColor = 'var(--warning)';
+                        showToast('Added to wishlist!', 'success');
                     } else {
-                        btn.textContent = '🤍 Add to Favorites';
+                        btn.textContent = '🤍 Add to Wishlist';
                         btn.style.borderColor = 'var(--border)';
+                        showToast('Removed from wishlist', 'info');
                     }
+                } else {
+                    showToast('Error: ' + (data.message || 'Could not update wishlist'), 'error');
                 }
             })
-            .catch(e => console.error('Error:', e));
+            .catch(e => {
+                if (btn) btn.disabled = false;
+                console.error('Error:', e);
+                showToast('Network error trying to update wishlist', 'error');
+            });
+        }
+        
+        // Backward compatibility
+        function toggleFavorite(mealId) {
+            return toggleWishlist(mealId);
         }
         
         function shareRecipe(url, source) {

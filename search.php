@@ -117,7 +117,7 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
         </main>
     </div>
     
-    <script src="assets/js/main.js"></script>
+    <script src="assets/js/main.js?v=<?php echo filemtime(__DIR__ . '/assets/js/main.js'); ?>"></script>
     <script>
         // ========================================
         // SEARCH PAGE SCRIPT
@@ -126,7 +126,7 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
         
         // Wait for generateMealCardHtml to be available before search runs
         let functionCheckInterval;
-        const maxAttempts = 20;
+        const maxAttempts = 50;  // Increased from 20 for more lenient timeout
         let attempts = 0;
         let searchInitialized = false;
            const SEARCH_REQUEST_TIMEOUT_MS = 10000;
@@ -177,17 +177,10 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
             attempts++;
             if (attempts >= maxAttempts) {
                 clearInterval(functionCheckInterval);
-                console.error('generateMealCardHtml never became available');
-                   searchDebug('generateMealCardHtml unavailable after max attempts; showing fallback state');
-                const container = document.getElementById('results-container');
-                const noResults = document.getElementById('no-results');
-                if (container) {
-                    container.innerHTML = '';
-                    container.setAttribute('aria-busy', 'false');
-                }
-                if (noResults) {
-                    noResults.classList.remove('hidden');
-                }
+                console.error('generateMealCardHtml never became available after', maxAttempts, 'attempts');
+                   searchDebug('generateMealCardHtml unavailable after max attempts; initializing search anyway');
+                // Initialize search anyway - rendering will handle the missing function
+                initializeSearch();
             }
         }
 
@@ -206,7 +199,7 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
         let currentOffset = 0;
         let canLoadMore = false;
         let isLoadingMore = false;
-        let searchTimeout;
+        // NOTE: searchTimeout is declared in main.js, don't redeclare here
         const searchDebugState = {
             initialized: false,
             initAttempts: 0,
@@ -359,13 +352,16 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
         }
 
         // Debounced search to prevent too many requests
-        function debounceSearchHandle() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
+        window.debounceSearchHandle = function() {
+            if (!window.debounceSearchTimeout) {
+                window.debounceSearchTimeout = null;
+            }
+            clearTimeout(window.debounceSearchTimeout);
+            window.debounceSearchTimeout = setTimeout(() => {
                 searchDebug('Debounced search triggered', { query: document.getElementById('searchInput').value });
                 handleSearch();
             }, 300);
-        }
+        };
 
         async function handleSearch() {
             currentOffset = 0;
@@ -388,6 +384,7 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
              searchDebugState.lastRequestId = requestId;
              searchDebugState.lastError = null;
              searchDebugState.lastUpdatedAt = new Date().toISOString();
+            
             const query = document.getElementById('searchInput').value;
             const activeChip = document.querySelector('.chip.active');
             const category = activeChip && activeChip.dataset.filter !== 'all' ? activeChip.dataset.filter : '';
@@ -532,15 +529,26 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
                    searchDebugState.lastUpdatedAt = new Date().toISOString();
 
                 if (data.meals && data.meals.length > 0) {
-                    // Use unified generateMealCardHtml function from main.js
-                    // If function not available, fall back to error message
+                    // Use generateMealCardHtml function from main.js
+                    // Cache function reference to avoid scope issues in map callbacks
+                    const mealCardGenerator = window.generateMealCardHtml || generateMealCardHtml;
+                    
+                    if (typeof mealCardGenerator !== 'function') {
+                        console.error('generateMealCardHtml function not available in either window or local scope');
+                        searchDebugState.lastError = 'generateMealCardHtml unavailable';
+                        searchDebug('generateMealCardHtml unavailable', {
+                            requestId,
+                            hasWindowFn: typeof window.generateMealCardHtml,
+                            meals: data.meals.length
+                        });
+                        container.innerHTML = '';
+                        noResults.classList.remove('hidden');
+                        return;
+                    }
+                    
                     const mealHtml = data.meals.map((meal, index) => {
-                        if (typeof generateMealCardHtml !== 'function') {
-                            console.error('generateMealCardHtml function not available');
-                            return `<div class="meal-card">Error: generateMealCardHtml not available</div>`;
-                        }
                         try {
-                            const html = generateMealCardHtml(meal, { animation_delay: index });
+                            const html = mealCardGenerator(meal, { animation_delay: index });
                             if (!html || typeof html !== 'string') {
                                 console.error('generateMealCardHtml returned invalid type:', typeof html, html);
                                    searchDebug('generateMealCardHtml returned invalid output', {
@@ -627,7 +635,9 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
                        stack: error.stack ? error.stack.split('\n').slice(0, 4).join(' | ') : ''
                    });
                 container.setAttribute('aria-busy', 'false');
-                showToast('Search failed', 'error');
+                if (typeof showToast === 'function') {
+                    showToast('Search failed', 'error');
+                }
                 if (!append) {
                     container.innerHTML = '';
                     noResults.classList.remove('hidden');
@@ -669,7 +679,6 @@ $categories = pdo_fetch_all("SELECT category_id, category_name, category_icon FR
         // Load initial meals on page load
         function initializeSearch() {
             if (searchInitialized) return;
-            if (typeof window.generateMealCardHtml !== 'function') return;
 
             searchInitialized = true;
                searchDebugState.initialized = true;

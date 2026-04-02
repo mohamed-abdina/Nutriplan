@@ -105,7 +105,7 @@ if (isset($_SESSION['user_id'])) {
         <p>© 2024-2026 NutriPlan. Made with 🍽️ for better living.</p>
     </footer>
     
-    <script src="assets/js/main.js" defer></script>
+    <script src="assets/js/main.js?v=<?php echo filemtime(__DIR__ . '/assets/js/main.js'); ?>" defer></script>
     <script>
         // Navbar glass effect
         window.addEventListener('scroll', () => {

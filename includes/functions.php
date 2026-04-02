@@ -269,3 +269,85 @@ HTML;
     
     return $html;
 }
+/**
+ * Cart Functions (renamed from shopping)
+ */
+
+function get_user_cart(&$conn, $user_id) {
+    $sql = "SELECT list_id, COUNT(ci.item_id) as total_items, 
+            SUM(CASE WHEN ci.purchased = 0 THEN 1 ELSE 0 END) as unpurchased
+            FROM carts c
+            LEFT JOIN cart_items ci ON c.list_id = ci.list_id
+            WHERE c.user_id = :user_id
+            ORDER BY c.created_at DESC
+            LIMIT 1";
+
+    $row = pdo_fetch_one($sql, [':user_id' => (int)$user_id]);
+    return $row === false ? [] : $row;
+}
+
+function get_cart_items_grouped(&$conn, $list_id) {
+    $sql = "SELECT c.category_name, c.category_id, ci.item_id, ci.item_name, 
+            ci.quantity, ci.purchased, ci.custom_item, m.meal_name
+            FROM cart_items ci
+            LEFT JOIN meals m ON ci.meal_id = m.meal_id
+            LEFT JOIN categories c ON m.category_id = c.category_id OR ci.custom_item = TRUE
+            WHERE ci.list_id = :list_id
+            ORDER BY c.category_id ASC, ci.purchased ASC";
+
+    $rows = pdo_fetch_all($sql, [':list_id' => (int)$list_id]);
+    return $rows === false ? [] : $rows;
+}
+
+// Backward compatibility: redirect old functions to new cart functions
+function get_user_shopping_list_legacy(&$conn, $user_id) {
+    return get_user_cart($conn, $user_id);
+}
+
+function get_shopping_items_grouped_legacy(&$conn, $list_id) {
+    return get_cart_items_grouped($conn, $list_id);
+}
+
+/**
+ * Wishlist Functions (renamed from favorites)
+ */
+
+function get_user_wishlist(&$conn, $user_id, $limit = 6) {
+    $sql = "SELECT m.meal_id, m.meal_name, m.meal_icon, c.category_name, c.category_id,
+            n.calories, n.proteins_g, r.rating, r.is_wishlisted, r.review
+            FROM meal_ratings r
+            JOIN meals m ON r.meal_id = m.meal_id
+            JOIN categories c ON m.category_id = c.category_id
+            JOIN nutrition n ON m.meal_id = n.meal_id
+            WHERE r.user_id = :user_id AND r.is_wishlisted = 1
+            ORDER BY r.rating DESC, r.updated_at DESC
+            LIMIT :limit";
+
+    $rows = pdo_fetch_all($sql, [':user_id' => (int)$user_id, ':limit' => (int)$limit]);
+    return $rows === false ? [] : $rows;
+}
+
+function get_wishlist_count(&$conn, $user_id) {
+    $sql = "SELECT COUNT(*) as count FROM meal_ratings 
+            WHERE user_id = :user_id AND is_wishlisted = 1";
+    
+    $row = pdo_fetch_one($sql, [':user_id' => (int)$user_id]);
+    return isset($row['count']) ? (int)$row['count'] : 0;
+}
+
+function is_meal_wishlisted(&$conn, $user_id, $meal_id) {
+    $sql = "SELECT is_wishlisted FROM meal_ratings 
+            WHERE user_id = :user_id AND meal_id = :meal_id";
+    
+    $row = pdo_fetch_one($sql, [':user_id' => (int)$user_id, ':meal_id' => (int)$meal_id]);
+    return $row ? (bool)$row['is_wishlisted'] : false;
+}
+
+// Backward compatibility: old function names redirect to new ones
+function get_user_favorites_legacy(&$conn, $user_id, $limit = 6) {
+    return get_user_wishlist($conn, $user_id, $limit);
+}
+
+function get_favorites_count_legacy(&$conn, $user_id) {
+    return get_wishlist_count($conn, $user_id);
+}

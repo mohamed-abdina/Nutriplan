@@ -3404,6 +3404,58 @@ textarea:focus-visible {
 }
 
 /* ============================================================
+
+/* ============================================================
+   BUTTON STATE STYLES - Cart & Wishlist Active States
+   ============================================================ */
+
+/* Cart button active state - when item is in cart */
+.btn.in-cart {
+  background: var(--success);
+  color: white;
+  border-color: var(--success);
+  transition: all var(--dur-normal);
+}
+
+.btn.in-cart:hover:not(:disabled) {
+  background: var(--success);
+  opacity: 0.9;
+  transform: scale(1.02);
+}
+
+.btn.in-cart:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Wishlist button active state - when item is wishlisted */
+.btn.wishlisted {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: var(--warning);
+  color: var(--warning);
+  transition: all var(--dur-normal);
+}
+
+.btn.wishlisted:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.2);
+  border-color: var(--warning);
+  transform: scale(1.02);
+}
+
+.btn.wishlisted:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Remove button styling - for cart items */
+.btn.btn-remove {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: rgba(248, 113, 113, 0.05);
+}
+
+.btn.btn-remove:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.15);
+  color: var(--danger);
+}
    55. PRINT STYLES
    ============================================================ */
 @media print {
