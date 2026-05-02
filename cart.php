@@ -1,0 +1,193 @@
+<?php
+/**
+ * Cart Page (Renamed from Shopping List)
+ * This file redirects to shopping.php which contains the cart functionality
+ * Both shopping.php and cart.php are equivalent for backward compatibility
+ */
+require_once __DIR__ . '/includes/session.php';
+require_once 'includes/db_connect.php';
+require_once 'includes/auth_check.php';
+
+$user_id = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
+
+// Get or create default cart
+$list = pdo_fetch_one("SELECT list_id FROM carts WHERE user_id = ? ORDER BY created_at DESC LIMIT 1", [$user_id]);
+if ($list) {
+    $list_id = $list['list_id'];
+} else {
+    pdo_query("INSERT INTO carts (user_id, list_name) VALUES (?, ?)", [$user_id, 'My Shopping List']);
+    // For lastInsertId, use PDO directly
+    $list_id = get_db()->lastInsertId();
+}
+
+// Get items grouped by category
+$sql = "SELECT ci.item_id, ci.item_name, ci.quantity, ci.purchased, ci.custom_item, 
+        ci.meal_id, m.meal_name, m.category_id,
+        c.category_name
+        FROM cart_items ci
+        LEFT JOIN meals m ON ci.meal_id = m.meal_id
+        LEFT JOIN categories c ON m.category_id = c.category_id OR ci.custom_item = TRUE
+        WHERE ci.list_id = ?
+        ORDER BY ci.purchased ASC, COALESCE(c.category_id, 999), ci.item_name";
+
+$fetched = pdo_fetch_all($sql, [$list_id]) ?? [];
+$items_by_category = [];
+$total_items = 0;
+$purchased = 0;
+
+foreach ($fetched as $row) {
+    // Determine category - prioritize meal category
+    $cat = $row['category_name'];
+    if (empty($cat)) {
+        $cat = 'Other';
+    }
+    
+    if (!isset($items_by_category[$cat])) {
+        $items_by_category[$cat] = [];
+    }
+    $items_by_category[$cat][] = $row;
+    $total_items++;
+    if ((int)$row['purchased'] === 1) $purchased++;
+}
+
+$progress = $total_items > 0 ? ($purchased / $total_items) * 100 : 0;
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🛒 Cart - NutriPlan</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="manifest" href="manifest.json">
+    <?php require_once __DIR__ . '/includes/csrf.php'; ?>
+    <meta name="csrf-token" content="<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
+</head>
+<body>
+    <div class="app-shell">
+        <?php include 'components/sidebar.php'; ?>
+        
+        <main class="main page-enter">
+            <!-- Topbar -->
+            <div class="topbar flex-between">
+                <h1>🛒 Cart</h1>
+                <div style="font-size: var(--text-sm); color: var(--text-2);" aria-label="Cart progress" role="status">
+                    <span class="progress-text"><span aria-hidden="true"><?php echo $purchased; ?> of <?php echo $total_items; ?></span> items purchased</span>
+                </div>
+            </div>
+            
+            <!-- Progress Bar -->
+            <div class="progress-container">
+                <div class="progress-bar-track">
+                    <div class="progress-bar" style="width: <?php echo $progress; ?>%;"></div>
+                </div>
+            </div>
+            
+            <!-- Shopping Items by Category -->
+            <div style="margin-bottom: var(--sp-8);">
+                <?php foreach ($items_by_category as $category => $items): ?>
+                <div style="margin-bottom: var(--sp-8);">
+                    <h3 class="category-header" style="margin-bottom: var(--sp-4); color: var(--text-2);"><?php echo htmlspecialchars($category); ?></h3>
+                    <ul style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; list-style: none; padding: 0; margin: 0;" role="list">
+                        <?php foreach ($items as $item): ?>
+                        <li class="list-item-layout swipe-enabled <?php echo $item['purchased'] ? 'list-item-checked' : ''; ?>" data-item-id="<?php echo (int)$item['item_id']; ?>" role="listitem">
+                            <div class="swipe-delete-hint" aria-hidden="true">🗑 Delete</div>
+                            <label style="display: flex; align-items: center; gap: var(--sp-3); flex: 1; width: 100%; padding: var(--sp-4) var(--sp-3);">
+                                <input type="checkbox" class="list-item-checkbox" <?php echo $item['purchased'] ? 'checked' : ''; ?> aria-label="Mark <?php echo htmlspecialchars($item['item_name']); ?> as purchased" onchange="toggleCartItem(<?php echo (int)$item['item_id']; ?>)">
+                                <span class="list-item-text" style="flex: 1; <?php echo $item['purchased'] ? 'text-decoration: line-through; color: var(--text-3);' : ''; ?>"><?php echo htmlspecialchars($item['item_name']); ?></span>
+                                <span class="list-item-quantity" style="font-size: var(--text-sm); color: var(--text-2);"><?php echo htmlspecialchars($item['quantity']); ?></span>
+                            </label>
+                            <button class="list-item-delete" aria-label="Delete <?php echo htmlspecialchars($item['item_name']); ?>" onclick="if(confirm('Delete \\\"<?php echo htmlspecialchars(str_replace('\"', '&quot;', $item['item_name']), ENT_QUOTES); ?>\\\" from your list?')) removeFromCart(<?php echo (int)$item['item_id']; ?>)" title="Delete item (or swipe left on mobile)">🗑</button>
+                        </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            
+            <!-- Suggestions Section -->
+            <div class="mt-12 hidden" id="suggestionsSection">
+                <h3 style="margin-bottom: var(--sp-6);">💡 Meal Suggestions</h3>
+                <div class="grid-2" id="suggestionsContainer" style="gap: var(--sp-4);">
+                    <!-- Loaded via JavaScript -->
+                </div>
+            </div>
+            
+            <!-- Add Custom Item -->
+            <div style="background: var(--overlay); border: 1px solid var(--border); border-radius: 12px; padding: var(--sp-6); margin-top: var(--sp-8);">
+                <p style="font-size: var(--text-sm); color: var(--text-2); margin-bottom: var(--sp-4);">Not finding something? Add a custom item.</p>
+                <form style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-4);" class="custom-item-form" novalidate>
+                    <input type="text" id="custom-item-name" placeholder="Item name" class="form-input" required aria-label="Custom item name">
+                    <input type="text" id="custom-item-qty" placeholder="Quantity" class="form-input" aria-label="Quantity">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="addCustomCartItem()">Add</button>
+                </form>
+            </div>
+        </main>
+    </div>
+    
+    <script src="assets/js/main.js?v=<?php echo filemtime(__DIR__ . '/assets/js/main.js'); ?>" defer></script>
+    <script>
+        function addCustomCartItem() {
+            const name = document.getElementById('custom-item-name').value;
+            const qty = document.getElementById('custom-item-qty').value || '1';
+            
+            if (!name) {
+                showToast('Please enter item name', 'warning');
+                return;
+            }
+            showLoader(true);
+            fetch(apiUrl('api/cart_action.php'), {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: `action=add_custom_item&name=${encodeURIComponent(name)}&qty=${encodeURIComponent(qty)}&csrf_token=${encodeURIComponent(document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '')}`
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('custom-item-name').value = '';
+                    document.getElementById('custom-item-qty').value = '';
+                    showToast('Item added!', 'success');
+                    // Don't reload - just show toast and let user continue
+                } else {
+                    showToast(data.message, 'error');
+                }
+            })
+            .finally(() => { showLoader(false); });
+        }
+        
+        // Load meal suggestions on page load
+        document.addEventListener('DOMContentLoaded', loadMealSuggestions);
+        
+        function loadMealSuggestions() {
+            fetch(`${apiUrl('api/search_api.php')}?q=&offset=0&sort=protein_high&limit=4`, {
+                method: 'GET'
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.meals && data.meals.length > 0) {
+                    const section = document.getElementById('suggestionsSection');
+                    const container = document.getElementById('suggestionsContainer');
+                    
+                    container.innerHTML = data.meals.slice(0, 4).map((meal, index) => `
+                        <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: var(--sp-4);">
+                            <div style="font-size: 1.5rem; margin-bottom: var(--sp-2);">${escapeHtml(meal.meal_icon)}</div>
+                            <h4 style="margin-bottom: var(--sp-1);">${escapeHtml(meal.meal_name)}</h4>
+                            <p style="color: var(--text-2); font-size: var(--text-xs); margin-bottom: var(--sp-3);">${escapeHtml(meal.category_name)}</p>
+                            
+                            <div style="display: flex; gap: var(--sp-1); margin-bottom: var(--sp-3); font-size: var(--text-xs);">
+                                <span style="background: rgba(var(--primary-rgb, 59, 130, 246), 0.1); color: var(--primary); padding: 2px 6px; border-radius: 4px;">🔥 ${escapeHtml(meal.calories.toString())}</span>
+                                <span style="background: rgba(var(--accent-rgb, 168, 85, 247), 0.1); color: var(--accent); padding: 2px 6px; border-radius: 4px;">💪 ${escapeHtml(meal.proteins_g.toString())}g</span>
+                            </div>
+                            
+                            <button class="btn btn-primary btn-sm" onclick="addToCart(${meal.meal_id})" style="width: 100%;">+ Add to Cart</button>
+                        </div>
+                    `).join('');
+                    
+                    section.classList.remove('hidden');
+                }
+            })
+            .catch(e => console.error('Error loading suggestions:', e));
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+# Environment & Configuration
+.env
+.env.local
+.env.*.local
+config/local_config.php
+
+# Database
+*.sql
+*.sqlite
+*.db
+seed_backup.php
+
+# Dependencies
+vendor/
+node_modules/
+composer.lock
+package-lock.json
+
+# User Uploads
+uploads/
+uploads/avatars/*
+!uploads/avatars/.gitkeep
+
+# Cache & Logs
+cache/
+logs/
+*.log
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.sublime-project
+*.sublime-workspace
+
+# PHP-specific
+.php_cs.cache
+.phpunit.cache/
+
+# Testing
+coverage/
+.coverage
+
+# Temporary Files
+tmp/
+temp/
+*.tmp
+
+# Documentation (Keep in repo)
+# README.md
+# QUICKSTART.md
+# API.md
+# PROJECT_SUMMARY.md
+# COMPLETION_CHECKLIST.md
+
+# Analytics (if added)
+analytics.json
+
+# Security
+.htpasswd
+private_keys/
+
+# Old/Backup Files
+*.bak
+*.backup
+old/
+deprecated/
+
+# OS-generated Files
+.AppleDouble
+.LSOverride
+ehthumbs.db
+
+# PWA specific (if caching user data)
+# service-worker-cache/
+
+# Analysis tools
+Analyse_Codebase_skill.md
+analysis_*.md
+
+test-results/core.*
+ 
+# Test results (ignore all test output)
+test-results/
+
+# Consider ignoring this if always generated or local-only:
+# bin/dev
+
+# Consider ignoring this if only used for local DB seeding:
+# seed.php
+
+NutriPlan_UX_Bug_Report_Report.docx.md
+NutriPlan_UX_Bug_Report.docx.md
+UI_UX_AUDIT_REPORT.md
+NUTRIPLAN_AUDIT_REPORT.md
+RESPONSIVE_UX_FIXES.md
+CRITICAL_FIXES_CHECKLIST.md
+complete_documentation_fixed.py
+complete_documentation.py
+complete_documentation_v2.py
+OFFICIAL SYSTEM DOCUMENTATION TEMPLATE (SKELETON COPY).docx
+NutriPlan_System_Documentation.docx
+NutriPlan_System_Documentation_COMPLETE.docx
